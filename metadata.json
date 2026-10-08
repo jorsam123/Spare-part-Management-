@@ -1,0 +1,6 @@
+{
+  "name": "HeavyEquip Parts & Sales - Machinery Vehicle Spares",
+  "description": "Spare parts store, inventory management, and sales invoicing system for heavy machinery and construction vehicles (CAT, Komatsu, Volvo, Hitachi).",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
