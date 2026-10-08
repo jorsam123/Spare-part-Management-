@@ -2,26 +2,24 @@ import React, { useState, useMemo } from 'react';
 import {
   Search,
   Download,
-  ArrowDownRight,
-  ArrowUpRight,
-  RefreshCw,
-  SlidersHorizontal,
   History,
-  CheckCircle2,
-  FileSpreadsheet,
 } from 'lucide-react';
-import { StockTransaction, TransactionType } from '../types/inventory';
+import { StockTransaction } from '../types/inventory';
 import { formatDateTime } from '../utils/formatters';
+import { Language, getTranslation, translateTransactionType } from '../utils/i18n';
 
 interface MovementsLedgerViewProps {
   transactions: StockTransaction[];
   onOpenQuickAction: (mode: 'RECEIPT' | 'ISSUE' | 'ADJUSTMENT') => void;
+  currentLang?: Language;
 }
 
 export const MovementsLedgerView: React.FC<MovementsLedgerViewProps> = ({
   transactions,
   onOpenQuickAction,
+  currentLang = 'am',
 }) => {
+  const t = getTranslation(currentLang);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState<string>('ALL');
 
@@ -82,7 +80,7 @@ export const MovementsLedgerView: React.FC<MovementsLedgerViewProps> = ({
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `partsvault_ledger_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.setAttribute('download', `heavyequip_ledger_${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -99,7 +97,7 @@ export const MovementsLedgerView: React.FC<MovementsLedgerViewProps> = ({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by part #, reference (PO/WO), operator, reason..."
+              placeholder={t.searchLedgerPlaceholder}
               className="w-full pl-9 pr-4 py-1.5 text-xs bg-slate-950 border border-slate-800 rounded text-slate-100 placeholder-slate-400 focus:outline-none focus:border-amber-400 transition-colors"
             />
           </div>
@@ -110,33 +108,33 @@ export const MovementsLedgerView: React.FC<MovementsLedgerViewProps> = ({
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-300 bg-slate-950 hover:bg-slate-800 border border-slate-800 rounded transition-colors whitespace-nowrap"
             >
               <Download className="w-3.5 h-3.5" />
-              <span>Export Ledger CSV</span>
+              <span>{t.exportLedgerCSV}</span>
             </button>
 
             <button
               onClick={() => onOpenQuickAction('RECEIPT')}
               className="px-3 py-1.5 text-xs font-medium text-emerald-400 bg-emerald-950/40 border border-emerald-800/60 hover:bg-emerald-950/60 rounded transition-colors whitespace-nowrap"
             >
-              + Receive
+              {t.btnReceive}
             </button>
             <button
               onClick={() => onOpenQuickAction('ISSUE')}
               className="px-3 py-1.5 text-xs font-medium text-rose-400 bg-rose-950/40 border border-rose-800/60 hover:bg-rose-950/60 rounded transition-colors whitespace-nowrap"
             >
-              - Issue
+              {t.btnIssue}
             </button>
           </div>
         </div>
 
-        {/* Filter Tabs / Segmented Control (Interactive Filter Controls are allowed buttons) */}
+        {/* Filter Tabs / Segmented Control */}
         <div className="flex flex-wrap items-center gap-1 pt-2 border-t border-slate-800/80">
-          <span className="text-[11px] text-slate-400 mr-2">Filter by Type:</span>
+          <span className="text-[11px] text-slate-400 mr-2">{t.filterByType}</span>
           {[
-            { id: 'ALL', label: 'All Transactions' },
-            { id: 'SALE', label: 'Store Sales (Invoices)' },
-            { id: 'RECEIPT', label: 'Goods Receipts (PO)' },
-            { id: 'ISSUE', label: 'Workshop Issues' },
-            { id: 'ADJUSTMENT', label: 'Cycle Adjustments' },
+            { id: 'ALL', label: t.txAll },
+            { id: 'SALE', label: t.txSales },
+            { id: 'RECEIPT', label: t.txReceipts },
+            { id: 'ISSUE', label: t.txIssues },
+            { id: 'ADJUSTMENT', label: t.txAdjustments },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -157,9 +155,9 @@ export const MovementsLedgerView: React.FC<MovementsLedgerViewProps> = ({
       {filteredTransactions.length === 0 ? (
         <div className="py-16 text-center bg-slate-900/40 border border-slate-800 rounded">
           <History className="w-10 h-10 text-slate-600 mx-auto mb-3" />
-          <h3 className="text-sm font-semibold text-slate-300">No stock movement logs found</h3>
-          <p className="text-xs text-slate-400 mt-1">
-            Try adjusting your search criteria or record a new goods receipt or issuance.
+          <h3 className="text-sm font-semibold text-slate-300">{t.noMovementsFound}</h3>
+          <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+            {t.noMovementsSub}
           </p>
         </div>
       ) : (
@@ -168,14 +166,14 @@ export const MovementsLedgerView: React.FC<MovementsLedgerViewProps> = ({
             <table className="w-full text-xs text-left border-collapse">
               <thead>
                 <tr className="bg-slate-950/80 border-b border-slate-800 text-slate-400">
-                  <th className="py-3 px-4 font-medium">Timestamp</th>
-                  <th className="py-3 px-4 font-medium">Type</th>
-                  <th className="py-3 px-4 font-medium">Part Number & Name</th>
-                  <th className="py-3 px-4 font-medium">Reference #</th>
-                  <th className="py-3 px-4 font-medium">Work Order / Machine</th>
-                  <th className="py-3 px-4 font-medium text-right">Quantity</th>
-                  <th className="py-3 px-4 font-medium text-right">Balance</th>
-                  <th className="py-3 px-4 font-medium">Operator & Notes</th>
+                  <th className="py-3 px-4 font-medium">{t.colTimestamp}</th>
+                  <th className="py-3 px-4 font-medium">{t.colType}</th>
+                  <th className="py-3 px-4 font-medium">{t.colPartNumName}</th>
+                  <th className="py-3 px-4 font-medium">{t.colRefNum}</th>
+                  <th className="py-3 px-4 font-medium">{t.colMachineryWO}</th>
+                  <th className="py-3 px-4 font-medium text-right">{t.colQtyChanged}</th>
+                  <th className="py-3 px-4 font-medium text-right">{t.colBalance}</th>
+                  <th className="py-3 px-4 font-medium">{t.colOperatorNotes}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/80">
@@ -188,18 +186,20 @@ export const MovementsLedgerView: React.FC<MovementsLedgerViewProps> = ({
                         {formatDateTime(tx.timestamp)}
                       </td>
 
-                      {/* Type (Clean unboxed text) */}
+                      {/* Type */}
                       <td className="py-3 px-4 whitespace-nowrap">
                         <span
                           className={`font-semibold text-xs ${
                             tx.type === 'RECEIPT'
                               ? 'text-emerald-400'
+                              : tx.type === 'SALE'
+                              ? 'text-amber-400'
                               : tx.type === 'ISSUE'
                               ? 'text-rose-400'
-                              : 'text-amber-400'
+                              : 'text-sky-400'
                           }`}
                         >
-                          {tx.type}
+                          {translateTransactionType(tx.type, currentLang)}
                         </span>
                       </td>
 
@@ -233,10 +233,10 @@ export const MovementsLedgerView: React.FC<MovementsLedgerViewProps> = ({
                       {/* Stock Balance */}
                       <td className="py-3 px-4 text-right font-mono text-xs text-slate-300 tabular-nums whitespace-nowrap">
                         <span className="text-slate-400 text-[10px] block">
-                          prev {tx.previousStock}
+                          {t.prevBalance} {tx.previousStock}
                         </span>
                         <span className="font-semibold text-white">
-                          now {tx.newStock}
+                          {t.nowBalance} {tx.newStock}
                         </span>
                       </td>
 

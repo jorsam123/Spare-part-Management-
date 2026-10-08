@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, ArrowDownRight, ArrowUpRight, RefreshCw, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { X, ArrowDownRight, ArrowUpRight, RefreshCw, AlertTriangle } from 'lucide-react';
 import { Part, TransactionType, StockTransaction } from '../types/inventory';
-import { formatCurrency, formatLocation } from '../utils/formatters';
+import { formatLocation } from '../utils/formatters';
 import { AppUser } from '../utils/storage';
+import { Language, getTranslation } from '../utils/i18n';
 
 interface QuickMovementModalProps {
   isOpen: boolean;
@@ -12,6 +13,7 @@ interface QuickMovementModalProps {
   currentUser: AppUser;
   onClose: () => void;
   onSubmit: (transaction: Omit<StockTransaction, 'id' | 'timestamp'>) => void;
+  currentLang?: Language;
 }
 
 export const QuickMovementModal: React.FC<QuickMovementModalProps> = ({
@@ -22,7 +24,10 @@ export const QuickMovementModal: React.FC<QuickMovementModalProps> = ({
   currentUser,
   onClose,
   onSubmit,
+  currentLang = 'am',
 }) => {
+  const t = getTranslation(currentLang);
+
   const [selectedPartId, setSelectedPartId] = useState<string>('');
   const [quantity, setQuantity] = useState<number>(1);
   const [referenceNumber, setReferenceNumber] = useState<string>('');
@@ -37,22 +42,21 @@ export const QuickMovementModal: React.FC<QuickMovementModalProps> = ({
       setSelectedPartId(parts[0].id);
     }
 
-    // Default reference based on mode
     const randomSuffix = Math.floor(1000 + Math.random() * 9000);
     if (mode === 'RECEIPT') {
       setReferenceNumber(`PO-2026-${randomSuffix}`);
-      setReason('Supplier delivery verified and stored in bin');
+      setReason(currentLang === 'am' ? 'የአቅራቢ ዕቃ ርክክብ ተረጋግጦ ቢን ውስጥ ገብቷል' : 'Supplier delivery verified and stored in bin');
     } else if (mode === 'ISSUE') {
       setReferenceNumber(`WO-${randomSuffix}`);
-      setReason('Issued for scheduled equipment maintenance');
+      setReason(currentLang === 'am' ? 'ለታቀደ የማሽነሪ ጥገና ወጪ ተደርጓል' : 'Issued for scheduled equipment maintenance');
     } else {
       setReferenceNumber(`CYCLE-${randomSuffix}`);
-      setReason('Physical audit cycle count adjustment');
+      setReason(currentLang === 'am' ? 'የመጋዘን ቆጠራ ልዩነት ማስተካከያ' : 'Physical audit cycle count adjustment');
     }
 
     setQuantity(1);
     setError('');
-  }, [isOpen, mode, preselectedPartId, parts]);
+  }, [isOpen, mode, preselectedPartId, parts, currentLang]);
 
   const selectedPart = useMemo(() => {
     return parts.find((p) => p.id === selectedPartId) || parts[0];
@@ -60,7 +64,6 @@ export const QuickMovementModal: React.FC<QuickMovementModalProps> = ({
 
   if (!isOpen || !selectedPart) return null;
 
-  // Stock calculation preview
   const prevStock = selectedPart.stockQuantity;
   let newStock = prevStock;
   let signedQty = quantity;
@@ -72,7 +75,6 @@ export const QuickMovementModal: React.FC<QuickMovementModalProps> = ({
     signedQty = -Math.abs(quantity);
     newStock = Math.max(0, prevStock - Math.abs(quantity));
   } else if (mode === 'ADJUSTMENT') {
-    // For adjustment, quantity can be positive or negative
     signedQty = quantity;
     newStock = Math.max(0, prevStock + quantity);
   }
@@ -80,15 +82,16 @@ export const QuickMovementModal: React.FC<QuickMovementModalProps> = ({
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!referenceNumber.trim()) {
-      setError('Reference number is required (PO#, WO#, etc.)');
+      setError(currentLang === 'am' ? 'የማመሳከሪያ ቁጥር ማስገባት ግዴታ ነው (PO# / WO#)' : 'Reference number is required (PO#, WO#, etc.)');
       return;
     }
 
     if (mode === 'ISSUE') {
-      const available = selectedPart.stockQuantity - selectedPart.reservedQuantity;
       if (Math.abs(quantity) > selectedPart.stockQuantity) {
         setError(
-          `Cannot issue ${quantity} units. Only ${selectedPart.stockQuantity} physical units in stock.`
+          currentLang === 'am'
+            ? `${quantity} ዕቃ ማውጣት አይቻልም። በመጋዘን ያለው ${selectedPart.stockQuantity} ብቻ ነው።`
+            : `Cannot issue ${quantity} units. Only ${selectedPart.stockQuantity} physical units in stock.`
         );
         return;
       }
@@ -138,13 +141,13 @@ export const QuickMovementModal: React.FC<QuickMovementModalProps> = ({
             <div>
               <h3 className="text-sm font-semibold text-white">
                 {mode === 'RECEIPT'
-                  ? 'Goods Receipt / Stock Check-In'
+                  ? (currentLang === 'am' ? 'የዕቃዎች ርክክብ / ገቢ' : 'Goods Receipt / Stock Check-In')
                   : mode === 'ISSUE'
-                  ? 'Part Issuance / Work Order Check-Out'
-                  : 'Physical Cycle Count Adjustment'}
+                  ? (currentLang === 'am' ? 'የመለዋወጫ ወጪ / ለሥራ ማስረከብ' : 'Part Issuance / Workshop Check-Out')
+                  : (currentLang === 'am' ? 'የክምችት ቆጠራ ልዩነት ማስተካከያ' : 'Physical Cycle Count Adjustment')}
               </h3>
               <p className="text-xs text-slate-400">
-                Operator: <span className="text-slate-200">{currentUser.name}</span>
+                {t.cashier}: <span className="text-slate-200">{currentUser.name}</span>
               </p>
             </div>
           </div>
@@ -165,9 +168,10 @@ export const QuickMovementModal: React.FC<QuickMovementModalProps> = ({
             </div>
           )}
 
-          {/* Part Selection */}
           <div>
-            <label className="block text-slate-300 font-medium mb-1">Select Spare Part</label>
+            <label className="block text-slate-300 font-medium mb-1">
+              {currentLang === 'am' ? 'መለዋወጫ ይምረጡ' : 'Select Spare Part'}
+            </label>
             <select
               value={selectedPartId}
               onChange={(e) => setSelectedPartId(e.target.value)}
@@ -175,33 +179,33 @@ export const QuickMovementModal: React.FC<QuickMovementModalProps> = ({
             >
               {parts.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.partNumber} — {p.name} (Stock: {p.stockQuantity} {p.unitOfMeasure})
+                  {p.partNumber} — {p.name} ({currentLang === 'am' ? 'ክምችት:' : 'Stock:'} {p.stockQuantity} {p.unitOfMeasure})
                 </option>
               ))}
             </select>
           </div>
 
-          {/* Part Meta Snapshot */}
           <div className="p-3 bg-slate-950/60 border border-slate-800/80 rounded flex items-center justify-between text-xs">
             <div>
-              <span className="text-slate-400 block text-[11px]">Storage Location</span>
+              <span className="text-slate-400 block text-[11px]">{t.storageLocation}</span>
               <span className="font-mono text-amber-400 font-medium">
                 {formatLocation(selectedPart.location)}
               </span>
             </div>
             <div className="text-right">
-              <span className="text-slate-400 block text-[11px]">Current Physical Stock</span>
+              <span className="text-slate-400 block text-[11px]">{t.stockOnHand}</span>
               <span className="font-mono font-bold text-white text-sm tabular-nums">
                 {selectedPart.stockQuantity} {selectedPart.unitOfMeasure}
               </span>
             </div>
           </div>
 
-          {/* Quantity & Reference */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-slate-300 font-medium mb-1">
-                {mode === 'ADJUSTMENT' ? 'Adjustment Offset (±)' : 'Quantity to Move'}
+                {mode === 'ADJUSTMENT'
+                  ? (currentLang === 'am' ? 'የማስተካከያ መጠን (±)' : 'Adjustment Offset (±)')
+                  : (currentLang === 'am' ? 'የእንቅስቃሴ ብዛት' : 'Quantity to Move')}
               </label>
               <input
                 type="number"
@@ -211,13 +215,13 @@ export const QuickMovementModal: React.FC<QuickMovementModalProps> = ({
                 className="w-full px-3 py-1.5 bg-slate-950 border border-slate-800 rounded font-mono text-white text-xs focus:outline-none focus:border-amber-400"
               />
               <span className="text-[10px] text-slate-400 mt-0.5 block">
-                Units: {selectedPart.unitOfMeasure}
+                {currentLang === 'am' ? 'መለኪያ:' : 'Units:'} {selectedPart.unitOfMeasure}
               </span>
             </div>
 
             <div>
               <label className="block text-slate-300 font-medium mb-1">
-                Reference # (PO / WO / Ticket) <span className="text-rose-400">*</span>
+                {currentLang === 'am' ? 'የማመሳከሪያ ቁጥር (PO / WO / ሰነድ)' : 'Reference # (PO / WO)'} <span className="text-rose-400">*</span>
               </label>
               <input
                 type="text"
@@ -229,40 +233,44 @@ export const QuickMovementModal: React.FC<QuickMovementModalProps> = ({
             </div>
           </div>
 
-          {/* Work Order / Machine Destination */}
           <div>
             <label className="block text-slate-300 font-medium mb-1">
-              Destination Machine / Production Line (Optional)
+              {currentLang === 'am' ? 'የታሰበለት ማሽነሪ / የሥራ ቦታ (አማራጭ)' : 'Destination Machine / Project'}
             </label>
             <input
               type="text"
               value={workOrderOrMachine}
               onChange={(e) => setWorkOrderOrMachine(e.target.value)}
-              placeholder="e.g. Stamping Press #4, Conveyor Line 2 Drive"
+              placeholder="e.g. Caterpillar 336D Excavator (Machine #04)"
               className="w-full px-3 py-1.5 bg-slate-950 border border-slate-800 rounded text-white text-xs focus:outline-none focus:border-amber-400"
             />
           </div>
 
-          {/* Reason / Notes */}
           <div>
-            <label className="block text-slate-300 font-medium mb-1">Transaction Reason</label>
+            <label className="block text-slate-300 font-medium mb-1">
+              {currentLang === 'am' ? 'ምክንያት / ማስታወሻ' : 'Transaction Reason'}
+            </label>
             <input
               type="text"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder="e.g. Routine 5k-hr replacement, emergency breakdown repair"
+              placeholder="e.g. 500-hr planned service, emergency hydraulic repair"
               className="w-full px-3 py-1.5 bg-slate-950 border border-slate-800 rounded text-white text-xs focus:outline-none focus:border-amber-400"
             />
           </div>
 
-          {/* Balance Preview Simulation */}
+          {/* Balance Preview */}
           <div className="p-3 bg-slate-950 border border-slate-800 rounded flex items-center justify-between font-mono text-xs">
             <div>
-              <span className="text-slate-400 block text-[10px] font-sans">Current Balance</span>
+              <span className="text-slate-400 block text-[10px] font-sans">
+                {currentLang === 'am' ? 'የቀድሞ ክምችት' : 'Current Balance'}
+              </span>
               <span className="text-slate-300 tabular-nums">{prevStock}</span>
             </div>
             <div className="text-center">
-              <span className="text-slate-400 block text-[10px] font-sans">Delta</span>
+              <span className="text-slate-400 block text-[10px] font-sans">
+                {currentLang === 'am' ? 'ልዩነት' : 'Delta'}
+              </span>
               <span
                 className={`font-bold tabular-nums ${
                   signedQty > 0
@@ -276,7 +284,9 @@ export const QuickMovementModal: React.FC<QuickMovementModalProps> = ({
               </span>
             </div>
             <div className="text-right">
-              <span className="text-slate-400 block text-[10px] font-sans">Projected Balance</span>
+              <span className="text-slate-400 block text-[10px] font-sans">
+                {currentLang === 'am' ? 'አዲስ ቀሪ ክምችት' : 'Projected Balance'}
+              </span>
               <span
                 className={`font-bold tabular-nums text-sm ${
                   newStock < selectedPart.minStockLevel ? 'text-rose-400' : 'text-emerald-400'
@@ -287,18 +297,17 @@ export const QuickMovementModal: React.FC<QuickMovementModalProps> = ({
             </div>
           </div>
 
-          {/* Actions */}
           <div className="pt-2 flex items-center justify-end gap-2">
             <button
               type="button"
               onClick={onClose}
               className="px-4 py-2 text-xs font-medium text-slate-400 hover:text-white rounded transition-colors"
             >
-              Cancel
+              {t.cancel}
             </button>
             <button
               type="submit"
-              className={`px-4 py-2 text-xs font-semibold rounded transition-colors shadow-sm ${
+              className={`px-4 py-2 text-xs font-bold rounded transition-colors shadow-sm ${
                 mode === 'RECEIPT'
                   ? 'bg-emerald-400 text-slate-950 hover:bg-emerald-300'
                   : mode === 'ISSUE'
@@ -306,7 +315,7 @@ export const QuickMovementModal: React.FC<QuickMovementModalProps> = ({
                   : 'bg-amber-400 text-slate-950 hover:bg-amber-300'
               }`}
             >
-              Confirm {mode} Entry
+              {currentLang === 'am' ? 'እንቅስቃሴውን መዝግብ' : `Confirm ${mode} Entry`}
             </button>
           </div>
         </form>

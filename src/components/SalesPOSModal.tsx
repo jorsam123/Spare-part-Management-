@@ -4,17 +4,15 @@ import {
   Plus,
   Trash2,
   ShoppingCart,
-  DollarSign,
-  Printer,
-  CheckCircle2,
   AlertTriangle,
   User,
   Truck,
-  Percent,
+  CheckCircle2,
 } from 'lucide-react';
 import { Part, Customer, SaleInvoice, SaleItem, PaymentMethod, InvoiceStatus } from '../types/inventory';
 import { formatCurrency } from '../utils/formatters';
 import { AppUser } from '../utils/storage';
+import { Language, getTranslation } from '../utils/i18n';
 
 interface SalesPOSModalProps {
   isOpen: boolean;
@@ -24,6 +22,7 @@ interface SalesPOSModalProps {
   currentUser: AppUser;
   onCompleteSale: (invoice: Omit<SaleInvoice, 'id' | 'createdAt'>) => void;
   preselectedPart?: Part | null;
+  currentLang?: Language;
 }
 
 export const SalesPOSModal: React.FC<SalesPOSModalProps> = ({
@@ -34,7 +33,11 @@ export const SalesPOSModal: React.FC<SalesPOSModalProps> = ({
   currentUser,
   onCompleteSale,
   preselectedPart,
+  currentLang = 'am',
 }) => {
+  const t = getTranslation(currentLang);
+  const currSymbol = t.currencySymbol;
+
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>(customers[0]?.id || '');
   const [machineryVehicle, setMachineryVehicle] = useState<string>('');
   const [priceTier, setPriceTier] = useState<'retail' | 'wholesale'>('wholesale');
@@ -45,7 +48,7 @@ export const SalesPOSModal: React.FC<SalesPOSModalProps> = ({
   const [notes, setNotes] = useState<string>('');
   const [error, setError] = useState<string>('');
 
-  // Selected line items
+  // Line items
   const [lineItems, setLineItems] = useState<
     Array<{
       partId: string;
@@ -63,7 +66,6 @@ export const SalesPOSModal: React.FC<SalesPOSModalProps> = ({
     return customers.find((c) => c.id === selectedCustomerId) || customers[0];
   }, [customers, selectedCustomerId]);
 
-  // Set machinery vehicle recommendation when customer changes
   React.useEffect(() => {
     if (selectedCustomer && !machineryVehicle) {
       const fleetSnippet = selectedCustomer.machineryFleet.split(',')[0] || '';
@@ -71,7 +73,6 @@ export const SalesPOSModal: React.FC<SalesPOSModalProps> = ({
     }
   }, [selectedCustomer]);
 
-  // Set preselected part if modal opens with one
   React.useEffect(() => {
     if (preselectedPart) {
       setLineItems([{ partId: preselectedPart.id, quantity: 1 }]);
@@ -100,7 +101,6 @@ export const SalesPOSModal: React.FC<SalesPOSModalProps> = ({
     setLineItems(updated);
   };
 
-  // Calculate totals
   const preparedItems: SaleItem[] = lineItems.map((item) => {
     const part = parts.find((p) => p.id === item.partId) || parts[0];
     const basePrice =
@@ -124,7 +124,7 @@ export const SalesPOSModal: React.FC<SalesPOSModalProps> = ({
   const subtotal = preparedItems.reduce((acc, it) => acc + it.lineTotal, 0);
   const discountTotal = (subtotal * discountPercent) / 100;
   const taxableAmount = Math.max(0, subtotal - discountTotal);
-  const taxAmount = applyTax ? taxableAmount * 0.05 : 0; // 5% state/industrial tax
+  const taxAmount = applyTax ? taxableAmount * 0.05 : 0;
   const grandTotal = taxableAmount + taxAmount;
 
   const totalCost = preparedItems.reduce((acc, it) => acc + it.quantity * it.unitCost, 0);
@@ -134,16 +134,21 @@ export const SalesPOSModal: React.FC<SalesPOSModalProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!machineryVehicle.trim()) {
-      setError('Machinery vehicle model or fleet ID is required for warranty/fitment');
+      setError(
+        currentLang === 'am'
+          ? 'እባክዎ የማሽኑን ሞዴል ወይም የሰሌዳ ቁጥር ያስገቡ'
+          : 'Machinery vehicle model or fleet ID is required for warranty/fitment'
+      );
       return;
     }
 
-    // Verify stock availability
     for (const item of preparedItems) {
       const part = parts.find((p) => p.id === item.partId);
       if (part && item.quantity > part.stockQuantity) {
         setError(
-          `Insufficient stock for ${part.partNumber}. In stock: ${part.stockQuantity} ${part.unitOfMeasure}, requested: ${item.quantity}.`
+          currentLang === 'am'
+            ? `ለ ${part.partNumber} በቂ ክምችት የለም። በመጋዘን ያለ: ${part.stockQuantity} ${part.unitOfMeasure}፣ የታዘዘ: ${item.quantity}።`
+            : `Insufficient stock for ${part.partNumber}. In stock: ${part.stockQuantity} ${part.unitOfMeasure}, requested: ${item.quantity}.`
         );
         return;
       }
@@ -182,10 +187,10 @@ export const SalesPOSModal: React.FC<SalesPOSModalProps> = ({
             </div>
             <div>
               <h3 className="text-sm font-semibold text-white">
-                Heavy Machinery Spares Store — Counter POS & Sales Invoicing
+                {t.posTitle}
               </h3>
               <p className="text-xs text-slate-400">
-                Process customer orders, apply wholesale fleet discounts, and deduct warehouse stock
+                {t.posSub}
               </p>
             </div>
           </div>
@@ -206,14 +211,13 @@ export const SalesPOSModal: React.FC<SalesPOSModalProps> = ({
             </div>
           )}
 
-          {/* Top Row: Customer & Target Machinery */}
+          {/* Customer & Target Machinery */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Customer Picker */}
             <div className="p-3 bg-slate-950/60 border border-slate-800 rounded space-y-2">
               <div className="flex items-center justify-between">
                 <label className="text-slate-300 font-medium flex items-center gap-1.5">
                   <User className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Customer / Fleet Account</span>
+                  <span>{t.fieldCustomerAccount}</span>
                 </label>
                 <span className="text-[10px] text-amber-400/90 font-mono font-medium">
                   {selectedCustomer.accountType}
@@ -231,19 +235,18 @@ export const SalesPOSModal: React.FC<SalesPOSModalProps> = ({
                 ))}
               </select>
               <div className="text-[11px] text-slate-400 truncate">
-                <span>Fleet: </span>
+                <span>{currentLang === 'am' ? 'የማሽኖች ፍሊት: ' : 'Fleet: '}</span>
                 <span className="text-slate-300">{selectedCustomer.machineryFleet}</span>
               </div>
             </div>
 
-            {/* Target Machinery Vehicle */}
             <div className="p-3 bg-slate-950/60 border border-slate-800 rounded space-y-2">
               <div className="flex items-center justify-between">
                 <label className="text-slate-300 font-medium flex items-center gap-1.5">
                   <Truck className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Machinery Vehicle / Machine Serial</span>
+                  <span>{t.fieldMachineryVehicle}</span>
                 </label>
-                <span className="text-[10px] text-slate-400">Required for Warranty</span>
+                <span className="text-[10px] text-slate-400">{t.requiredForWarranty}</span>
               </div>
               <input
                 type="text"
@@ -253,7 +256,7 @@ export const SalesPOSModal: React.FC<SalesPOSModalProps> = ({
                 className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded text-white text-xs focus:outline-none focus:border-amber-400"
               />
               <div className="flex items-center gap-3 text-[11px] text-slate-400">
-                <span>Pricing Tier:</span>
+                <span>{t.pricingTier}</span>
                 <button
                   type="button"
                   onClick={() => setPriceTier('wholesale')}
@@ -263,7 +266,7 @@ export const SalesPOSModal: React.FC<SalesPOSModalProps> = ({
                       : 'bg-slate-900 text-slate-300 hover:text-white'
                   }`}
                 >
-                  Wholesale Fleet
+                  {t.tierWholesale}
                 </button>
                 <button
                   type="button"
@@ -274,17 +277,17 @@ export const SalesPOSModal: React.FC<SalesPOSModalProps> = ({
                       : 'bg-slate-900 text-slate-300 hover:text-white'
                   }`}
                 >
-                  Retail Counter
+                  {t.tierRetail}
                 </button>
               </div>
             </div>
           </div>
 
-          {/* Line Items Table */}
+          {/* Line Items */}
           <div className="p-4 bg-slate-950/60 border border-slate-800 rounded space-y-3">
             <div className="flex items-center justify-between pb-2 border-b border-slate-800">
               <h4 className="font-semibold text-slate-200">
-                Machinery Spare Parts Order Lines ({lineItems.length})
+                {t.orderLines} ({lineItems.length})
               </h4>
               <button
                 type="button"
@@ -292,7 +295,7 @@ export const SalesPOSModal: React.FC<SalesPOSModalProps> = ({
                 className="flex items-center gap-1 text-[11px] font-semibold text-amber-400 hover:text-amber-300"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>+ Add Part Line</span>
+                <span>{t.btnAddPartLine}</span>
               </button>
             </div>
 
@@ -310,7 +313,6 @@ export const SalesPOSModal: React.FC<SalesPOSModalProps> = ({
                     key={idx}
                     className="p-2.5 bg-slate-900 border border-slate-800 rounded flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs"
                   >
-                    {/* Part Select */}
                     <div className="flex-1 min-w-[280px]">
                       <select
                         value={item.partId}
@@ -319,26 +321,25 @@ export const SalesPOSModal: React.FC<SalesPOSModalProps> = ({
                       >
                         {parts.map((p) => (
                           <option key={p.id} value={p.id}>
-                            {p.partNumber} · {p.brand} — {p.name} (Stock: {p.stockQuantity}{' '}
+                            {p.partNumber} · {p.brand} — {p.name} ({currentLang === 'am' ? 'ክምችት:' : 'Stock:'} {p.stockQuantity}{' '}
                             {p.unitOfMeasure})
                           </option>
                         ))}
                       </select>
                       <div className="flex items-center gap-2 text-[10px] text-slate-400 mt-1">
-                        <span>Bin: {part.location.aisle}-{part.location.bin}</span>
+                        <span>{t.colLocation}: {part.location.aisle}-{part.location.bin}</span>
                         <span aria-hidden="true">·</span>
                         <span className={isOverStock ? 'text-rose-400 font-bold' : 'text-emerald-400'}>
-                          {part.stockQuantity} {part.unitOfMeasure} available
+                          {part.stockQuantity} {part.unitOfMeasure} {currentLang === 'am' ? 'በመጋዘን አለ' : 'available'}
                         </span>
                         <span aria-hidden="true">·</span>
-                        <span>Weight: {part.weightKg * item.quantity} kg</span>
+                        <span>{t.weight}: {part.weightKg * item.quantity} {currentLang === 'am' ? 'ኪ.ግ' : 'kg'}</span>
                       </div>
                     </div>
 
-                    {/* Quantity & Unit Price */}
                     <div className="flex items-center gap-3">
                       <div>
-                        <span className="text-[10px] text-slate-400 block mb-0.5">Quantity</span>
+                        <span className="text-[10px] text-slate-400 block mb-0.5">{t.quantity}</span>
                         <input
                           type="number"
                           min="1"
@@ -351,7 +352,7 @@ export const SalesPOSModal: React.FC<SalesPOSModalProps> = ({
                       </div>
 
                       <div>
-                        <span className="text-[10px] text-slate-400 block mb-0.5">Unit Price ($)</span>
+                        <span className="text-[10px] text-slate-400 block mb-0.5">{t.unitPrice}</span>
                         <input
                           type="number"
                           step="0.01"
@@ -368,9 +369,9 @@ export const SalesPOSModal: React.FC<SalesPOSModalProps> = ({
                       </div>
 
                       <div className="text-right w-24">
-                        <span className="text-[10px] text-slate-400 block mb-0.5">Subtotal</span>
+                        <span className="text-[10px] text-slate-400 block mb-0.5">{t.subtotal}</span>
                         <span className="font-mono text-sm font-bold text-white tabular-nums">
-                          {formatCurrency(item.quantity * activePrice)}
+                          {formatCurrency(item.quantity * activePrice, currSymbol)}
                         </span>
                       </div>
 
@@ -390,39 +391,38 @@ export const SalesPOSModal: React.FC<SalesPOSModalProps> = ({
             </div>
           </div>
 
-          {/* Payment & Financial Breakdown Strip */}
+          {/* Payment & Financial Breakdown */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Payment Method & Status */}
             <div className="p-3 bg-slate-950/60 border border-slate-800 rounded space-y-3">
               <div>
-                <label className="block text-slate-300 font-medium mb-1">Payment Method</label>
+                <label className="block text-slate-300 font-medium mb-1">{t.paymentMethod}</label>
                 <select
                   value={paymentMethod}
                   onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
                   className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded text-slate-200 text-xs focus:outline-none focus:border-amber-400"
                 >
-                  <option value="Fleet Account (Net 30)">Fleet Account (Net 30 Commercial Credit)</option>
-                  <option value="Credit / Debit Card">Credit / Debit Card (Counter Terminal)</option>
-                  <option value="Bank Wire Transfer">Bank Wire Transfer / ACH</option>
-                  <option value="Cash (Counter)">Cash (Counter Pickup)</option>
+                  <option value="Fleet Account (Net 30)">{t.payFleetCredit}</option>
+                  <option value="Credit / Debit Card">{t.payCard}</option>
+                  <option value="Bank Wire Transfer">{t.payWire}</option>
+                  <option value="Cash (Counter)">{t.payCash}</option>
                 </select>
               </div>
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-slate-300 font-medium mb-1">Invoice Status</label>
+                  <label className="block text-slate-300 font-medium mb-1">{t.invoiceStatus}</label>
                   <select
                     value={orderStatus}
                     onChange={(e) => setOrderStatus(e.target.value as InvoiceStatus)}
                     className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded text-slate-200 text-xs focus:outline-none focus:border-amber-400"
                   >
-                    <option value="Paid">Paid / Cleared</option>
-                    <option value="Pending Net 30">Pending Net 30 Days</option>
-                    <option value="Quote / Estimate">Quote / Estimate Only</option>
+                    <option value="Paid">{t.statusPaid}</option>
+                    <option value="Pending Net 30">{t.statusPendingNet30}</option>
+                    <option value="Quote / Estimate">{t.statusQuote}</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-slate-300 font-medium mb-1">Discount (%)</label>
+                  <label className="block text-slate-300 font-medium mb-1">{t.discountPercent}</label>
                   <input
                     type="number"
                     min="0"
@@ -436,28 +436,27 @@ export const SalesPOSModal: React.FC<SalesPOSModalProps> = ({
 
               <div>
                 <label className="block text-slate-300 font-medium mb-1">
-                  Delivery / Work Order Reference Notes
+                  {t.deliveryNotes}
                 </label>
                 <input
                   type="text"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  placeholder="e.g. Job site delivery, PO #TX-9901, quarry loader breakdown"
+                  placeholder="e.g. Job site delivery, PO #TX-9901"
                   className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded text-white text-xs focus:outline-none focus:border-amber-400"
                 />
               </div>
             </div>
 
-            {/* Calculations & Profitability Box */}
             <div className="p-4 bg-slate-950 border border-slate-800 rounded space-y-2 font-mono text-xs">
               <div className="flex justify-between text-slate-400">
-                <span>Subtotal Items:</span>
-                <span className="text-white tabular-nums">{formatCurrency(subtotal)}</span>
+                <span>{t.subtotal}:</span>
+                <span className="text-white tabular-nums">{formatCurrency(subtotal, currSymbol)}</span>
               </div>
               {discountPercent > 0 && (
                 <div className="flex justify-between text-amber-400">
-                  <span>Customer Discount ({discountPercent}%):</span>
-                  <span className="tabular-nums">-{formatCurrency(discountTotal)}</span>
+                  <span>{currentLang === 'am' ? 'የተደረገ ቅናሽ' : 'Discount'} ({discountPercent}%):</span>
+                  <span className="tabular-nums">-{formatCurrency(discountTotal, currSymbol)}</span>
                 </div>
               )}
               <div className="flex items-center justify-between text-slate-400">
@@ -468,22 +467,22 @@ export const SalesPOSModal: React.FC<SalesPOSModalProps> = ({
                     onChange={(e) => setApplyTax(e.target.checked)}
                     className="rounded bg-slate-900 border-slate-800 text-amber-400"
                   />
-                  <span>State Sales Tax (5%):</span>
+                  <span>{t.salesTax}</span>
                 </label>
-                <span className="tabular-nums">{formatCurrency(taxAmount)}</span>
+                <span className="tabular-nums">{formatCurrency(taxAmount, currSymbol)}</span>
               </div>
 
               <div className="border-t border-slate-800 pt-2 flex justify-between items-baseline">
-                <span className="font-sans font-bold text-sm text-white">Grand Total:</span>
+                <span className="font-sans font-bold text-sm text-white">{t.grandTotal}</span>
                 <span className="text-xl font-bold text-emerald-400 tabular-nums">
-                  {formatCurrency(grandTotal)}
+                  {formatCurrency(grandTotal, currSymbol)}
                 </span>
               </div>
 
               <div className="border-t border-slate-800/80 pt-2 flex justify-between text-[11px] text-slate-400">
-                <span>Store Gross Margin:</span>
+                <span>{t.storeGrossMargin}</span>
                 <span className="text-emerald-400 font-semibold tabular-nums">
-                  {formatCurrency(grossProfit)} ({marginPercent.toFixed(1)}%)
+                  {formatCurrency(grossProfit, currSymbol)} ({marginPercent.toFixed(1)}%)
                 </span>
               </div>
             </div>
@@ -492,7 +491,7 @@ export const SalesPOSModal: React.FC<SalesPOSModalProps> = ({
           {/* Footer Submit */}
           <div className="pt-2 flex items-center justify-between border-t border-slate-800">
             <span className="text-slate-400 text-[11px]">
-              Cashier: <strong className="text-slate-200">{currentUser.name}</strong>
+              {t.cashier}: <strong className="text-slate-200">{currentUser.name}</strong>
             </span>
             <div className="flex items-center gap-2">
               <button
@@ -500,14 +499,14 @@ export const SalesPOSModal: React.FC<SalesPOSModalProps> = ({
                 onClick={onClose}
                 className="px-4 py-2 text-xs font-medium text-slate-400 hover:text-white rounded transition-colors"
               >
-                Cancel
+                {t.cancel}
               </button>
               <button
                 type="submit"
                 className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-slate-950 bg-amber-400 hover:bg-amber-300 rounded transition-colors shadow-sm"
               >
                 <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>Process Sale & Issue Parts</span>
+                <span>{t.btnProcessSale}</span>
               </button>
             </div>
           </div>

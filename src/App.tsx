@@ -22,6 +22,7 @@ import {
   PurchaseOrder,
   TransactionType,
 } from './types/inventory';
+import { Language, getTranslation } from './utils/i18n';
 import { Header } from './components/Header';
 import { DashboardView } from './components/DashboardView';
 import { InventoryTableView } from './components/InventoryTableView';
@@ -37,6 +38,15 @@ import { PrintLabelModal } from './components/PrintLabelModal';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<AppUser>(APP_USERS[0]);
+  const [currentLang, setCurrentLang] = useState<Language>(() => {
+    try {
+      const stored = localStorage.getItem('he_lang_v1');
+      return (stored as Language) || 'am';
+    } catch {
+      return 'am';
+    }
+  });
+
   const [parts, setParts] = useState<Part[]>(() => getStoredParts());
   const [transactions, setTransactions] = useState<StockTransaction[]>(() => getStoredTransactions());
   const [customers, setCustomers] = useState<Customer[]>(() => getStoredCustomers());
@@ -61,7 +71,18 @@ export default function App() {
   });
   const [printLabelPart, setPrintLabelPart] = useState<Part | null>(null);
 
-  // Sync to localStorage
+  const t = getTranslation(currentLang);
+
+  // Sync lang to storage
+  useEffect(() => {
+    try {
+      localStorage.setItem('he_lang_v1', currentLang);
+    } catch (e) {
+      console.error(e);
+    }
+  }, [currentLang]);
+
+  // Sync data to localStorage
   useEffect(() => {
     saveStoredParts(parts);
   }, [parts]);
@@ -110,7 +131,7 @@ export default function App() {
           referenceNumber: 'CATALOG-REG',
           performedBy: `${currentUser.name} (${currentUser.role})`,
           timestamp: new Date().toISOString(),
-          reason: 'Initial machinery spare part catalog registration',
+          reason: currentLang === 'am' ? 'የመጀመሪያ የመለዋወጫ ካታሎግ ምዝገባ' : 'Initial machinery spare part catalog registration',
           toLocation: `${part.location.warehouse} / ${part.location.aisle}-${part.location.bin}`,
         };
         setTransactions([initTx, ...transactions]);
@@ -131,7 +152,6 @@ export default function App() {
       createdAt: now,
     };
 
-    // Deduct stock for all items sold & record SALE transactions
     const newTxns: StockTransaction[] = [];
     setParts((prevParts) =>
       prevParts.map((part) => {
@@ -156,7 +176,9 @@ export default function App() {
             performedBy: `${currentUser.name} (${currentUser.role})`,
             timestamp: now,
             customerName: saleData.customer.company,
-            reason: `Customer Counter Sale (${saleData.customer.company} - ${saleData.machineryVehicle})`,
+            reason: currentLang === 'am'
+              ? `የደንበኛ የካውንተር ሽያጭ (${saleData.customer.company} - ${saleData.machineryVehicle})`
+              : `Customer Counter Sale (${saleData.customer.company} - ${saleData.machineryVehicle})`,
           });
 
           return {
@@ -169,7 +191,6 @@ export default function App() {
       })
     );
 
-    // Save invoice & transaction records
     setInvoices([newInvoice, ...invoices]);
     if (newTxns.length > 0) {
       setTransactions([...newTxns, ...transactions]);
@@ -229,7 +250,9 @@ export default function App() {
             referenceNumber: po.poNumber,
             performedBy: `${currentUser.name} (${currentUser.role})`,
             timestamp: now,
-            reason: `Received factory delivery from ${po.supplierName}`,
+            reason: currentLang === 'am'
+              ? `ከአቅራቢ ${po.supplierName} የተላከ ዕቃ ርክክብ ተፈጽሟል`
+              : `Received factory delivery from ${po.supplierName}`,
             toLocation: `${part.location.warehouse} / ${part.location.aisle}-${part.location.bin}`,
           });
 
@@ -294,7 +317,9 @@ export default function App() {
       totalAmount,
       expectedDeliveryDate: etaDate.toISOString().slice(0, 10),
       createdAt: now.toISOString(),
-      notes: `Replenishment order for ${lowParts.length} critical heavy equipment components.`,
+      notes: currentLang === 'am'
+        ? `እጥረት ላጋጠማቸው ${lowParts.length} የከባድ ማሽነሪ መለዋወጫዎች የተዘጋጀ አዲስ የግዢ ትዕዛዝ።`
+        : `Replenishment order for ${lowParts.length} critical heavy equipment components.`,
     };
 
     setPurchaseOrders([newPO, ...purchaseOrders]);
@@ -302,7 +327,7 @@ export default function App() {
   };
 
   const handleResetData = () => {
-    if (window.confirm('Reset machinery parts catalog, store sales, and POs to initial baseline data?')) {
+    if (window.confirm(currentLang === 'am' ? 'የማሽነሪ መለዋወጫዎችን እና የሽያጭ መረጃዎችን ወደ መጀመሪያው ናሙና መረጃዎች መመለስ ይፈልጋሉ?' : 'Reset machinery parts catalog, store sales, and POs to initial baseline data?')) {
       resetAllToSampleData();
       setParts(getStoredParts());
       setTransactions(getStoredTransactions());
@@ -319,7 +344,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
-      {/* 3-Zone Header Contract */}
+      {/* 3-Zone Header Contract with Amharic language switcher */}
       <Header
         currentUser={currentUser}
         onSwitchUser={setCurrentUser}
@@ -338,35 +363,36 @@ export default function App() {
         onResetData={handleResetData}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
+        currentLang={currentLang}
+        onToggleLang={setCurrentLang}
       />
 
       {/* Main Container */}
       <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* Navigation Breadcrumb */}
+        {/* Navigation Breadcrumb in Amharic */}
         <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
           <div className="flex items-center gap-2 text-xs text-slate-400">
-            <span>Heavy Machinery Dealership & Spares Store</span>
+            <span>{t.dealershipLocation}</span>
             <span aria-hidden="true">/</span>
             <span className="text-white font-medium capitalize">
               {activeTab === 'inventory'
-                ? 'Parts Catalog & Fitment'
+                ? t.navCatalog
                 : activeTab === 'sales'
-                ? 'Store Sales & Invoicing (POS)'
+                ? t.navSales
                 : activeTab === 'movements'
-                ? 'Movement Ledger'
+                ? t.navLedger
                 : activeTab === 'purchase-orders'
-                ? 'Restock Purchase Orders'
+                ? t.navPOs
                 : activeTab === 'bin-map'
-                ? 'Warehouse & Yard Bays'
-                : 'Store Overview'}
+                ? t.navBinMap
+                : t.navOverview}
             </span>
           </div>
 
           <div className="flex items-center gap-2 text-xs text-slate-400">
-            <span>Dealership Facility: </span>
-            <span className="text-amber-400 font-medium">Main Store & Heavy Yard Active</span>
+            <span>{t.facilityStatus}</span>
             <span className="text-slate-600" aria-hidden="true">·</span>
-            <span>CAT · Komatsu · Volvo · Hitachi</span>
+            <span className="text-amber-400 font-mono">CAT · Komatsu · Volvo · Hitachi</span>
           </div>
         </div>
 
@@ -386,6 +412,7 @@ export default function App() {
             }}
             onNavigateTab={setActiveTab}
             onAutoGeneratePO={handleAutoGeneratePO}
+            currentLang={currentLang}
           />
         )}
 
@@ -407,6 +434,7 @@ export default function App() {
             }
             onSellPart={openSellModalForPart}
             onPrintLabel={(part) => setPrintLabelPart(part)}
+            currentLang={currentLang}
           />
         )}
 
@@ -417,6 +445,7 @@ export default function App() {
               setPreselectedSellPart(null);
               setIsSalesPOSOpen(true);
             }}
+            currentLang={currentLang}
           />
         )}
 
@@ -424,6 +453,7 @@ export default function App() {
           <MovementsLedgerView
             transactions={transactions}
             onOpenQuickAction={(mode) => setQuickActionState({ isOpen: true, mode })}
+            currentLang={currentLang}
           />
         )}
 
@@ -433,6 +463,7 @@ export default function App() {
             parts={parts}
             onAutoGeneratePO={handleAutoGeneratePO}
             onReceivePO={handleReceivePO}
+            currentLang={currentLang}
           />
         )}
 
@@ -443,6 +474,7 @@ export default function App() {
             onOpenQuickAction={(mode, partId) =>
               setQuickActionState({ isOpen: true, mode, partId })
             }
+            currentLang={currentLang}
           />
         )}
       </main>
@@ -463,6 +495,7 @@ export default function App() {
           onSellPart={openSellModalForPart}
           onPrintLabel={(part) => setPrintLabelPart(part)}
           transactions={transactions}
+          currentLang={currentLang}
         />
       )}
 
@@ -475,6 +508,7 @@ export default function App() {
           }}
           onSave={handleSavePart}
           initialPart={editingPart}
+          currentLang={currentLang}
         />
       )}
 
@@ -490,6 +524,7 @@ export default function App() {
           currentUser={currentUser}
           onCompleteSale={handleCompleteSale}
           preselectedPart={preselectedSellPart}
+          currentLang={currentLang}
         />
       )}
 
@@ -502,6 +537,7 @@ export default function App() {
           currentUser={currentUser}
           onClose={() => setQuickActionState({ isOpen: false, mode: 'RECEIPT' })}
           onSubmit={handleRecordTransaction}
+          currentLang={currentLang}
         />
       )}
 
@@ -509,6 +545,7 @@ export default function App() {
         <PrintLabelModal
           part={printLabelPart}
           onClose={() => setPrintLabelPart(null)}
+          currentLang={currentLang}
         />
       )}
     </div>

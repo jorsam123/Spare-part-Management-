@@ -1,14 +1,22 @@
 import React from 'react';
 import { X, Printer, Barcode } from 'lucide-react';
 import { Part } from '../types/inventory';
+import { Language, getTranslation, translateWarehouse, translateCategory } from '../utils/i18n';
 
 interface PrintLabelModalProps {
   part: Part | null;
   onClose: () => void;
+  currentLang?: Language;
 }
 
-export const PrintLabelModal: React.FC<PrintLabelModalProps> = ({ part, onClose }) => {
+export const PrintLabelModal: React.FC<PrintLabelModalProps> = ({
+  part,
+  onClose,
+  currentLang = 'am',
+}) => {
   if (!part) return null;
+
+  const t = getTranslation(currentLang);
 
   const handlePrint = () => {
     window.print();
@@ -34,7 +42,9 @@ export const PrintLabelModal: React.FC<PrintLabelModalProps> = ({ part, onClose 
         <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/50 print:hidden">
           <div className="flex items-center gap-2">
             <Barcode className="w-4 h-4 text-amber-400" />
-            <h3 className="text-sm font-semibold text-white">Machinery Bin Tag Preview</h3>
+            <h3 className="text-sm font-semibold text-white">
+              {currentLang === 'am' ? 'የመጋዘን ቢን ታግ ቅድመ-ዕይታ' : 'Machinery Bin Tag Preview'}
+            </h3>
           </div>
           <button
             onClick={onClose}
@@ -53,10 +63,10 @@ export const PrintLabelModal: React.FC<PrintLabelModalProps> = ({ part, onClose 
             {/* Header */}
             <div className="flex items-center justify-between border-b-2 border-black pb-1.5 mb-2">
               <span className="font-extrabold text-xs uppercase tracking-wider">
-                HEAVYEQUIP · {part.location.warehouse}
+                {t.appName} · {translateWarehouse(part.location.warehouse, currentLang)}
               </span>
               <span className="font-mono text-[10px] font-bold">
-                {part.weightKg} KG
+                {part.weightKg} {currentLang === 'am' ? 'ኪ.ግ' : 'KG'}
               </span>
             </div>
 
@@ -76,7 +86,7 @@ export const PrintLabelModal: React.FC<PrintLabelModalProps> = ({ part, onClose 
             {/* Compatible Heavy Vehicles */}
             <div className="p-1.5 bg-neutral-100 border border-neutral-300 rounded mb-2 font-mono text-[10px]">
               <span className="font-bold text-black uppercase block text-[9px] font-sans">
-                Machinery Compatibility:
+                {currentLang === 'am' ? 'የሚስማማቸው ማሽኖች:' : 'Machinery Compatibility:'}
               </span>
               <span className="text-neutral-800">
                 {part.compatibleVehicles.map((v) => `${v.make} ${v.model}`).join(' · ')}
@@ -99,25 +109,25 @@ export const PrintLabelModal: React.FC<PrintLabelModalProps> = ({ part, onClose 
             <div className="border-t-2 border-b-2 border-black py-1.5 my-2 grid grid-cols-4 text-center font-mono">
               <div className="border-r border-black pr-1">
                 <span className="text-[9px] uppercase font-bold block text-neutral-600 font-sans">
-                  Aisle
+                  {t.aisle}
                 </span>
                 <span className="text-base font-black">{part.location.aisle}</span>
               </div>
               <div className="border-r border-black px-1">
                 <span className="text-[9px] uppercase font-bold block text-neutral-600 font-sans">
-                  Rack
+                  {t.rack}
                 </span>
                 <span className="text-base font-black">{part.location.rack}</span>
               </div>
               <div className="border-r border-black px-1">
                 <span className="text-[9px] uppercase font-bold block text-neutral-600 font-sans">
-                  Shelf
+                  {t.shelf}
                 </span>
                 <span className="text-base font-black">{part.location.shelf}</span>
               </div>
               <div className="pl-1">
                 <span className="text-[9px] uppercase font-bold block text-neutral-600 font-sans">
-                  Bin
+                  {t.bin}
                 </span>
                 <span className="text-base font-black">{part.location.bin}</span>
               </div>
@@ -128,12 +138,16 @@ export const PrintLabelModal: React.FC<PrintLabelModalProps> = ({ part, onClose 
               <div>
                 <span>MIN: {part.minStockLevel} · ROP: {part.reorderPoint}</span>
                 <span className="block font-sans text-neutral-700 font-normal">
-                  {part.category}
+                  {translateCategory(part.category, currentLang)}
                 </span>
               </div>
               <div className="text-right">
-                <span className="block text-black">Retail: ${part.sellingPrice.toFixed(2)}</span>
-                <span className="text-neutral-700">Fleet: ${part.wholesalePrice.toFixed(2)}</span>
+                <span className="block text-black">
+                  {currentLang === 'am' ? 'ችርቻሮ' : 'Retail'}: {t.currencySymbol} {part.sellingPrice.toFixed(2)}
+                </span>
+                <span className="text-neutral-700">
+                  {currentLang === 'am' ? 'ጅምላ' : 'Fleet'}: {t.currencySymbol} {part.wholesalePrice.toFixed(2)}
+                </span>
               </div>
             </div>
           </div>
@@ -141,20 +155,22 @@ export const PrintLabelModal: React.FC<PrintLabelModalProps> = ({ part, onClose 
 
         {/* Footer */}
         <div className="px-6 py-4 border-t border-slate-800 bg-slate-950/50 flex items-center justify-between print:hidden">
-          <p className="text-[11px] text-slate-400">Thermal Bin Tag format (4"x3")</p>
+          <p className="text-[11px] text-slate-400">
+            {currentLang === 'am' ? 'የተርማል ቢን ታግ መጠን (4"x3")' : 'Thermal Bin Tag format (4"x3")'}
+          </p>
           <div className="flex items-center gap-2">
             <button
               onClick={onClose}
               className="px-3 py-1.5 text-xs font-medium text-slate-400 hover:text-white rounded transition-colors"
             >
-              Close
+              {t.close}
             </button>
             <button
               onClick={handlePrint}
               className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-slate-950 bg-amber-400 hover:bg-amber-300 rounded transition-colors shadow-sm"
             >
               <Printer className="w-3.5 h-3.5" />
-              <span>Print Label</span>
+              <span>{t.btnPrint}</span>
             </button>
           </div>
         </div>

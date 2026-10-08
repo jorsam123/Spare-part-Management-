@@ -7,19 +7,18 @@ import {
   Barcode,
   ShoppingCart,
   ArrowDownRight,
-  ArrowUpRight,
-  Truck,
   Boxes,
   LayoutGrid,
   Table as TableIcon,
 } from 'lucide-react';
-import { Part, PartCategory, MachineryMake, VehicleType } from '../types/inventory';
+import { Part } from '../types/inventory';
 import {
   formatCurrency,
   formatNumber,
   formatLocation,
   getStockStatus,
 } from '../utils/formatters';
+import { Language, getTranslation, translateCategory, translateWarehouse } from '../utils/i18n';
 
 interface InventoryTableViewProps {
   parts: Part[];
@@ -30,6 +29,7 @@ interface InventoryTableViewProps {
   onOpenQuickAction: (mode: 'RECEIPT' | 'ISSUE' | 'ADJUSTMENT', preselectedPartId?: string) => void;
   onSellPart: (part: Part) => void;
   onPrintLabel: (part: Part) => void;
+  currentLang?: Language;
 }
 
 type SortField =
@@ -50,7 +50,11 @@ export const InventoryTableView: React.FC<InventoryTableViewProps> = ({
   onOpenQuickAction,
   onSellPart,
   onPrintLabel,
+  currentLang = 'am',
 }) => {
+  const t = getTranslation(currentLang);
+  const currSymbol = t.currencySymbol;
+
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMake, setSelectedMake] = useState<string>('ALL');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
@@ -105,13 +109,13 @@ export const InventoryTableView: React.FC<InventoryTableViewProps> = ({
       }
 
       if (selectedStatus !== 'ALL') {
-        const { status } = getStockStatus(part);
+        const { status } = getStockStatus(part, currentLang);
         if (status !== selectedStatus) return false;
       }
 
       return true;
     });
-  }, [parts, searchQuery, selectedMake, selectedCategory, selectedStatus]);
+  }, [parts, searchQuery, selectedMake, selectedCategory, selectedStatus, currentLang]);
 
   // Sorting
   const sortedParts = useMemo(() => {
@@ -157,9 +161,9 @@ export const InventoryTableView: React.FC<InventoryTableViewProps> = ({
       'Compatible Vehicles',
       'In Stock',
       'Available',
-      'Unit Cost (USD)',
-      'Wholesale Price (USD)',
-      'Retail Price (USD)',
+      'Unit Cost (ETB)',
+      'Wholesale Price (ETB)',
+      'Retail Price (ETB)',
       'Weight (kg)',
       'Location',
       'Supplier',
@@ -204,7 +208,7 @@ export const InventoryTableView: React.FC<InventoryTableViewProps> = ({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by part # (1R-0716), machinery model (336D), brand, bin..."
+              placeholder={t.searchPlaceholder}
               className="w-full pl-9 pr-4 py-1.5 text-xs bg-slate-950 border border-slate-800 rounded text-slate-100 placeholder-slate-400 focus:outline-none focus:border-amber-400 transition-colors"
             />
             {searchQuery && (
@@ -212,7 +216,7 @@ export const InventoryTableView: React.FC<InventoryTableViewProps> = ({
                 onClick={() => setSearchQuery('')}
                 className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-white"
               >
-                Clear
+                {currentLang === 'am' ? 'አጥፋ' : 'Clear'}
               </button>
             )}
           </div>
@@ -225,7 +229,7 @@ export const InventoryTableView: React.FC<InventoryTableViewProps> = ({
                 className={`p-1.5 rounded transition-colors ${
                   viewMode === 'table' ? 'bg-slate-800 text-amber-400' : 'text-slate-400 hover:text-white'
                 }`}
-                title="Table view"
+                title="የሰንጠረዥ እይታ"
               >
                 <TableIcon className="w-3.5 h-3.5" />
               </button>
@@ -234,7 +238,7 @@ export const InventoryTableView: React.FC<InventoryTableViewProps> = ({
                 className={`p-1.5 rounded transition-colors ${
                   viewMode === 'cards' ? 'bg-slate-800 text-amber-400' : 'text-slate-400 hover:text-white'
                 }`}
-                title="Grid card view"
+                title="የካርድ እይታ"
               >
                 <LayoutGrid className="w-3.5 h-3.5" />
               </button>
@@ -245,7 +249,7 @@ export const InventoryTableView: React.FC<InventoryTableViewProps> = ({
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-300 bg-slate-950 hover:bg-slate-800 border border-slate-800 rounded transition-colors whitespace-nowrap"
             >
               <Download className="w-3.5 h-3.5" />
-              <span>Export CSV</span>
+              <span>{t.btnExportCSV}</span>
             </button>
 
             <button
@@ -253,7 +257,7 @@ export const InventoryTableView: React.FC<InventoryTableViewProps> = ({
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-950 bg-amber-400 hover:bg-amber-300 rounded transition-colors whitespace-nowrap"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>New Part</span>
+              <span>{t.btnNewPart}</span>
             </button>
           </div>
         </div>
@@ -262,13 +266,13 @@ export const InventoryTableView: React.FC<InventoryTableViewProps> = ({
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2 border-t border-slate-800/80 text-xs">
           {/* Machinery Make Filter */}
           <div>
-            <label className="block text-[11px] text-slate-400 mb-1">Machinery Make / Brand</label>
+            <label className="block text-[11px] text-slate-400 mb-1">{t.filterMake}</label>
             <select
               value={selectedMake}
               onChange={(e) => setSelectedMake(e.target.value)}
               className="w-full px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded text-slate-200 focus:outline-none focus:border-amber-400 text-xs"
             >
-              <option value="ALL">All Machinery Makes</option>
+              <option value="ALL">{t.allMakes}</option>
               {makes.map((m) => (
                 <option key={m} value={m}>
                   {m}
@@ -279,16 +283,16 @@ export const InventoryTableView: React.FC<InventoryTableViewProps> = ({
 
           {/* System Category */}
           <div>
-            <label className="block text-[11px] text-slate-400 mb-1">System / Category</label>
+            <label className="block text-[11px] text-slate-400 mb-1">{t.filterCategory}</label>
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
               className="w-full px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded text-slate-200 focus:outline-none focus:border-amber-400 text-xs"
             >
-              <option value="ALL">All Systems & Categories</option>
+              <option value="ALL">{t.allCategories}</option>
               {categories.map((c) => (
                 <option key={c} value={c}>
-                  {c}
+                  {translateCategory(c, currentLang)}
                 </option>
               ))}
             </select>
@@ -296,17 +300,17 @@ export const InventoryTableView: React.FC<InventoryTableViewProps> = ({
 
           {/* Stock Health */}
           <div>
-            <label className="block text-[11px] text-slate-400 mb-1">Stock Level Status</label>
+            <label className="block text-[11px] text-slate-400 mb-1">{t.filterStockStatus}</label>
             <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
               className="w-full px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded text-slate-200 focus:outline-none focus:border-amber-400 text-xs"
             >
-              <option value="ALL">All Stock Levels</option>
-              <option value="Critical">Critical Shortage (&lt; Min)</option>
-              <option value="Low">Needs Reorder (≤ ROP)</option>
-              <option value="Nominal">Adequate Stock</option>
-              <option value="Overstocked">Overstocked</option>
+              <option value="ALL">{t.allStockLevels}</option>
+              <option value="Critical">{t.statusCritical}</option>
+              <option value="Low">{t.statusLow}</option>
+              <option value="Nominal">{t.statusNominal}</option>
+              <option value="Overstocked">{t.statusOverstocked}</option>
             </select>
           </div>
         </div>
@@ -315,8 +319,8 @@ export const InventoryTableView: React.FC<InventoryTableViewProps> = ({
         <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1">
           <div className="flex items-center gap-2">
             <span>
-              Showing <strong className="text-white tabular-nums">{sortedParts.length}</strong> of{' '}
-              <strong className="text-slate-300 tabular-nums">{parts.length}</strong> machinery spare parts
+              {t.showingCatalog} <strong className="text-white tabular-nums">{sortedParts.length}</strong> {t.ofCatalog}{' '}
+              <strong className="text-slate-300 tabular-nums">{parts.length}</strong> {t.machinerySpareParts}
             </span>
             {(selectedMake !== 'ALL' || selectedCategory !== 'ALL' || selectedStatus !== 'ALL' || searchQuery) && (
               <button
@@ -328,35 +332,40 @@ export const InventoryTableView: React.FC<InventoryTableViewProps> = ({
                 }}
                 className="text-amber-400 hover:underline"
               >
-                Reset filters
+                {t.resetFilters}
               </button>
             )}
           </div>
 
           <div className="hidden sm:block">
-            <span>Catalog Retail Stock Value: </span>
+            <span>{t.catalogRetailValue}: </span>
             <span className="font-mono text-emerald-400 font-semibold tabular-nums">
               {formatCurrency(
-                sortedParts.reduce((acc, p) => acc + p.stockQuantity * p.sellingPrice, 0)
+                sortedParts.reduce((acc, p) => acc + p.stockQuantity * p.sellingPrice, 0),
+                currSymbol
               )}
             </span>
           </div>
         </div>
       </div>
 
-      {/* Main View: High-Density Table or Cards */}
+      {/* Main View */}
       {sortedParts.length === 0 ? (
         <div className="py-16 text-center bg-slate-900/40 border border-slate-800 rounded">
           <Boxes className="w-10 h-10 text-slate-600 mx-auto mb-3" />
-          <h3 className="text-sm font-semibold text-slate-300">No machinery parts match your filters</h3>
+          <h3 className="text-sm font-semibold text-slate-300">
+            {currentLang === 'am' ? 'የተፈለገው መለዋወጫ አልተገኘም' : 'No machinery parts match your filters'}
+          </h3>
           <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
-            Try adjusting your search query, selecting another machinery brand, or register a new part SKU.
+            {currentLang === 'am'
+              ? 'የፍለጋ ቃሉን ወይም የማጣሪያ ምርጫውን ይለውጡ ወይም አዲስ መለዋወጫ ይመዝግቡ።'
+              : 'Try adjusting your search query, selecting another machinery brand, or register a new part SKU.'}
           </p>
           <button
             onClick={onOpenAddPart}
             className="mt-4 px-3 py-1.5 text-xs font-semibold text-slate-950 bg-amber-400 hover:bg-amber-300 rounded transition-colors"
           >
-            + Add Spare Part
+            {t.btnNewPart}
           </button>
         </div>
       ) : viewMode === 'table' ? (
@@ -370,7 +379,7 @@ export const InventoryTableView: React.FC<InventoryTableViewProps> = ({
                     className="py-3 px-4 font-medium cursor-pointer hover:text-white"
                   >
                     <div className="flex items-center gap-1.5">
-                      <span>Part # / Brand</span>
+                      <span>{t.colPartNumber}</span>
                       <ArrowUpDown className="w-3 h-3 text-slate-400" />
                     </div>
                   </th>
@@ -379,18 +388,18 @@ export const InventoryTableView: React.FC<InventoryTableViewProps> = ({
                     className="py-3 px-4 font-medium cursor-pointer hover:text-white"
                   >
                     <div className="flex items-center gap-1.5">
-                      <span>Description</span>
+                      <span>{t.colDescription}</span>
                       <ArrowUpDown className="w-3 h-3 text-slate-400" />
                     </div>
                   </th>
-                  <th className="py-3 px-4 font-medium">Compatible Vehicles</th>
-                  <th className="py-3 px-4 font-medium">Location</th>
+                  <th className="py-3 px-4 font-medium">{t.colCompatibleVehicles}</th>
+                  <th className="py-3 px-4 font-medium">{t.colLocation}</th>
                   <th
                     onClick={() => handleSort('stockQuantity')}
                     className="py-3 px-3 font-medium text-right cursor-pointer hover:text-white"
                   >
                     <div className="flex items-center justify-end gap-1.5">
-                      <span>In Stock</span>
+                      <span>{t.colInStock}</span>
                       <ArrowUpDown className="w-3 h-3 text-slate-400" />
                     </div>
                   </th>
@@ -399,7 +408,7 @@ export const InventoryTableView: React.FC<InventoryTableViewProps> = ({
                     className="py-3 px-3 font-medium text-right cursor-pointer hover:text-white"
                   >
                     <div className="flex items-center justify-end gap-1.5">
-                      <span>Wholesale</span>
+                      <span>{t.colWholesale}</span>
                       <ArrowUpDown className="w-3 h-3 text-slate-400" />
                     </div>
                   </th>
@@ -408,17 +417,16 @@ export const InventoryTableView: React.FC<InventoryTableViewProps> = ({
                     className="py-3 px-3 font-medium text-right cursor-pointer hover:text-white"
                   >
                     <div className="flex items-center justify-end gap-1.5">
-                      <span>Retail Price</span>
+                      <span>{t.colRetail}</span>
                       <ArrowUpDown className="w-3 h-3 text-slate-400" />
                     </div>
                   </th>
-                  <th className="py-3 px-4 font-medium text-right">Counter Actions</th>
+                  <th className="py-3 px-4 font-medium text-right">{t.colCounterActions}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/80">
                 {sortedParts.map((part) => {
-                  const available = part.stockQuantity - part.reservedQuantity;
-                  const { status, label, colorClass } = getStockStatus(part);
+                  const { status, label, colorClass } = getStockStatus(part, currentLang);
 
                   return (
                     <tr key={part.id} className="hover:bg-slate-800/40 transition-colors group">
@@ -441,7 +449,7 @@ export const InventoryTableView: React.FC<InventoryTableViewProps> = ({
                       <td className="py-2.5 px-4 max-w-[260px]">
                         <p className="font-medium text-slate-200 truncate">{part.name}</p>
                         <p className="text-[11px] text-slate-400 truncate">
-                          {part.category} · {part.weightKg} kg
+                          {translateCategory(part.category, currentLang)} · {part.weightKg} {currentLang === 'am' ? 'ኪ.ግ' : 'kg'}
                         </p>
                       </td>
 
@@ -458,7 +466,7 @@ export const InventoryTableView: React.FC<InventoryTableViewProps> = ({
                           ))}
                           {part.compatibleVehicles.length > 2 && (
                             <span className="text-[10px] text-slate-500 block">
-                              +{part.compatibleVehicles.length - 2} more models
+                              +{part.compatibleVehicles.length - 2} {currentLang === 'am' ? 'ተጨማሪ' : 'more'}
                             </span>
                           )}
                         </div>
@@ -466,7 +474,7 @@ export const InventoryTableView: React.FC<InventoryTableViewProps> = ({
 
                       {/* Location */}
                       <td className="py-2.5 px-4 font-mono text-[11px] text-slate-300 whitespace-nowrap">
-                        <span className="text-slate-400">{part.location.warehouse}</span>
+                        <span className="text-slate-400">{translateWarehouse(part.location.warehouse, currentLang)}</span>
                         <span className="mx-1 text-slate-600">·</span>
                         <span>{part.location.aisle}-{part.location.bin}</span>
                       </td>
@@ -481,38 +489,37 @@ export const InventoryTableView: React.FC<InventoryTableViewProps> = ({
                         </span>
                         {part.reservedQuantity > 0 && (
                           <span className="text-[10px] text-amber-400/80 block">
-                            ({part.reservedQuantity} res)
+                            ({part.reservedQuantity} {currentLang === 'am' ? 'የተያዘ' : 'res'})
                           </span>
                         )}
                       </td>
 
                       {/* Wholesale Trade Price */}
                       <td className="py-2.5 px-3 text-right font-mono text-slate-300 tabular-nums">
-                        {formatCurrency(part.wholesalePrice)}
+                        {formatCurrency(part.wholesalePrice, currSymbol)}
                       </td>
 
                       {/* Retail Price */}
                       <td className="py-2.5 px-3 text-right font-mono font-semibold text-emerald-400 tabular-nums">
-                        {formatCurrency(part.sellingPrice)}
+                        {formatCurrency(part.sellingPrice, currSymbol)}
                       </td>
 
                       {/* Actions */}
                       <td className="py-2.5 px-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
-                          {/* Fast Sell / POS */}
                           <button
                             onClick={() => onSellPart(part)}
                             className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold text-slate-950 bg-amber-400 hover:bg-amber-300 rounded transition-colors whitespace-nowrap shadow-sm"
-                            title="Sell part at counter POS"
+                            title={t.btnSell}
                           >
                             <ShoppingCart className="w-3 h-3" />
-                            <span>Sell</span>
+                            <span>{t.btnSell}</span>
                           </button>
 
                           <button
                             onClick={() => onOpenQuickAction('RECEIPT', part.id)}
                             className="p-1 text-emerald-400 hover:bg-emerald-950/40 rounded transition-colors"
-                            title="Receive goods delivery"
+                            title={t.btnReceiveStock}
                           >
                             <ArrowDownRight className="w-3.5 h-3.5" />
                           </button>
@@ -520,7 +527,7 @@ export const InventoryTableView: React.FC<InventoryTableViewProps> = ({
                           <button
                             onClick={() => onPrintLabel(part)}
                             className="p-1 text-slate-400 hover:text-white rounded hover:bg-slate-800 transition-colors"
-                            title="Print Bin Tag"
+                            title={t.btnPrint}
                           >
                             <Barcode className="w-3.5 h-3.5" />
                           </button>
@@ -529,7 +536,7 @@ export const InventoryTableView: React.FC<InventoryTableViewProps> = ({
                             onClick={() => onEditPart(part)}
                             className="px-2 py-1 text-[11px] text-slate-300 hover:text-amber-400 hover:bg-slate-800 rounded transition-colors"
                           >
-                            Edit
+                            {t.btnEdit}
                           </button>
                         </div>
                       </td>
@@ -544,7 +551,7 @@ export const InventoryTableView: React.FC<InventoryTableViewProps> = ({
         /* Cards View */
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {sortedParts.map((part) => {
-            const { status, label, colorClass } = getStockStatus(part);
+            const { status, label, colorClass } = getStockStatus(part, currentLang);
 
             return (
               <div
@@ -576,7 +583,9 @@ export const InventoryTableView: React.FC<InventoryTableViewProps> = ({
 
                   {/* Vehicle Compatibility Tag list */}
                   <div className="p-2 bg-slate-950/80 border border-slate-800/80 rounded mb-3 text-[11px]">
-                    <span className="text-slate-400 text-[10px] block mb-1">Fits Machinery:</span>
+                    <span className="text-slate-400 text-[10px] block mb-1">
+                      {currentLang === 'am' ? 'የሚገጥምላቸው ማሽኖች:' : 'Fits Machinery:'}
+                    </span>
                     <div className="flex flex-wrap gap-1">
                       {part.compatibleVehicles.map((v, i) => (
                         <span
@@ -592,21 +601,21 @@ export const InventoryTableView: React.FC<InventoryTableViewProps> = ({
                   {/* Pricing and Stock Grid */}
                   <div className="grid grid-cols-3 gap-2 py-2 px-3 bg-slate-950/60 border border-slate-800/80 rounded font-mono text-xs">
                     <div>
-                      <span className="text-[10px] text-slate-400 block font-sans">In Stock</span>
+                      <span className="text-[10px] text-slate-400 block font-sans">{t.inStock}</span>
                       <span className={`font-bold tabular-nums ${colorClass}`}>
                         {part.stockQuantity} {part.unitOfMeasure}
                       </span>
                     </div>
                     <div>
-                      <span className="text-[10px] text-slate-400 block font-sans">Wholesale</span>
+                      <span className="text-[10px] text-slate-400 block font-sans">{t.colWholesale}</span>
                       <span className="text-slate-200 tabular-nums">
-                        {formatCurrency(part.wholesalePrice)}
+                        {formatCurrency(part.wholesalePrice, currSymbol)}
                       </span>
                     </div>
                     <div>
-                      <span className="text-[10px] text-slate-400 block font-sans">Retail</span>
+                      <span className="text-[10px] text-slate-400 block font-sans">{t.colRetail}</span>
                       <span className="text-emerald-400 font-bold tabular-nums">
-                        {formatCurrency(part.sellingPrice)}
+                        {formatCurrency(part.sellingPrice, currSymbol)}
                       </span>
                     </div>
                   </div>
@@ -615,7 +624,7 @@ export const InventoryTableView: React.FC<InventoryTableViewProps> = ({
                 {/* Footer Actions */}
                 <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between">
                   <span className="font-mono text-[11px] text-slate-400">
-                    {formatLocation(part.location)}
+                    {formatLocation(part.location, currentLang)}
                   </span>
                   <div className="flex items-center gap-2">
                     <button
@@ -623,13 +632,13 @@ export const InventoryTableView: React.FC<InventoryTableViewProps> = ({
                       className="flex items-center gap-1 px-3 py-1 text-xs font-bold text-slate-950 bg-amber-400 hover:bg-amber-300 rounded transition-colors shadow-sm"
                     >
                       <ShoppingCart className="w-3.5 h-3.5" />
-                      <span>Sell</span>
+                      <span>{t.btnSell}</span>
                     </button>
                     <button
                       onClick={() => onEditPart(part)}
                       className="px-2 py-1 text-[11px] text-slate-300 hover:text-amber-400 hover:bg-slate-800 rounded transition-colors"
                     >
-                      Edit
+                      {t.btnEdit}
                     </button>
                   </div>
                 </div>

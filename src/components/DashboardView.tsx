@@ -11,11 +11,10 @@ import {
   TrendingUp,
   Warehouse,
   Truck,
-  Wrench,
-  Receipt,
 } from 'lucide-react';
 import { Part, StockTransaction, SaleInvoice } from '../types/inventory';
 import { formatCurrency, formatNumber, formatDateTime, getStockStatus } from '../utils/formatters';
+import { Language, getTranslation, translateCategory } from '../utils/i18n';
 
 interface DashboardViewProps {
   parts: Part[];
@@ -26,6 +25,7 @@ interface DashboardViewProps {
   onOpenNewSale: () => void;
   onNavigateTab: (tab: string) => void;
   onAutoGeneratePO: () => void;
+  currentLang?: Language;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
@@ -37,7 +37,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onOpenNewSale,
   onNavigateTab,
   onAutoGeneratePO,
+  currentLang = 'am',
 }) => {
+  const t = getTranslation(currentLang);
+  const currSymbol = t.currencySymbol;
+
   // Calculations
   const totalSKUs = parts.length;
   const totalUnits = parts.reduce((acc, p) => acc + p.stockQuantity, 0);
@@ -60,7 +64,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     (p) => p.stockQuantity <= p.reorderPoint && p.stockQuantity >= p.minStockLevel
   );
 
-  // Machinery fleet distribution (Caterpillar, Komatsu, Volvo, Hitachi, etc.)
+  // Machinery fleet distribution
   const makeStats = React.useMemo(() => {
     const map = new Map<string, { count: number; value: number }>();
     parts.forEach((p) => {
@@ -76,58 +80,43 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       .sort((a, b) => b.count - a.count);
   }, [parts]);
 
-  // Category breakdown
-  const categoryStats = React.useMemo(() => {
-    const map = new Map<string, { count: number; value: number; units: number }>();
-    parts.forEach((p) => {
-      const existing = map.get(p.category) || { count: 0, value: 0, units: 0 };
-      existing.count += 1;
-      existing.units += p.stockQuantity;
-      existing.value += p.stockQuantity * p.sellingPrice;
-      map.set(p.category, existing);
-    });
-    return Array.from(map.entries())
-      .map(([category, data]) => ({ category, ...data }))
-      .sort((a, b) => b.value - a.value);
-  }, [parts]);
-
   const recentTransactions = transactions.slice(0, 6);
 
   return (
     <div className="space-y-6">
-      {/* Top Scorecard - 6 Metrics with Single Elevation & Tabular Figures */}
+      {/* Top 6 Metric Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        {/* Total Store Sales Revenue */}
+        {/* Total Store Revenue */}
         <div
           onClick={() => onNavigateTab('sales')}
           className="p-4 bg-slate-900/60 border border-slate-800 rounded hover:border-slate-700 transition-colors cursor-pointer"
         >
           <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-xs font-medium">Store Revenue</span>
+            <span className="text-xs font-medium">{t.statStoreRevenue}</span>
             <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
           </div>
-          <p className="text-2xl font-bold text-emerald-400 tabular-nums tracking-tight font-mono">
-            {formatCurrency(totalStoreSalesRevenue)}
+          <p className="text-xl font-bold text-emerald-400 tabular-nums tracking-tight font-mono">
+            {formatCurrency(totalStoreSalesRevenue, currSymbol)}
           </p>
           <div className="mt-1 text-[11px] text-slate-400">
-            {invoices.length} orders fulfilled
+            {invoices.length} {t.statOrdersFulfilled}
           </div>
         </div>
 
-        {/* Realized Gross Profit */}
+        {/* Realized Sales Profit */}
         <div
           onClick={() => onNavigateTab('sales')}
           className="p-4 bg-slate-900/60 border border-slate-800 rounded hover:border-slate-700 transition-colors cursor-pointer"
         >
           <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-xs font-medium">Sales Profit</span>
+            <span className="text-xs font-medium">{t.statSalesProfit}</span>
             <TrendingUp className="w-3.5 h-3.5 text-amber-400" />
           </div>
-          <p className="text-2xl font-bold text-amber-400 tabular-nums tracking-tight font-mono">
-            {formatCurrency(totalGrossProfit)}
+          <p className="text-xl font-bold text-amber-400 tabular-nums tracking-tight font-mono">
+            {formatCurrency(totalGrossProfit, currSymbol)}
           </p>
           <div className="mt-1 text-[11px] text-slate-400">
-            Gross parts margin
+            {t.statGrossMargin}
           </div>
         </div>
 
@@ -137,31 +126,31 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           className="p-4 bg-slate-900/60 border border-slate-800 rounded hover:border-slate-700 transition-colors cursor-pointer"
         >
           <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-xs font-medium">Stock Units</span>
+            <span className="text-xs font-medium">{t.statStockUnits}</span>
             <Warehouse className="w-3.5 h-3.5" />
           </div>
           <p className="text-2xl font-bold text-white tabular-nums tracking-tight font-mono">
             {formatNumber(totalUnits)}
           </p>
           <div className="mt-1 text-[11px] text-slate-400">
-            Across {totalSKUs} heavy SKUs
+            {t.statAcrossSKUs} ({totalSKUs})
           </div>
         </div>
 
-        {/* Stock Valuation (Retail Value) */}
+        {/* Inventory Value */}
         <div
           onClick={() => onNavigateTab('inventory')}
           className="p-4 bg-slate-900/60 border border-slate-800 rounded hover:border-slate-700 transition-colors cursor-pointer"
         >
           <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-xs font-medium">Inventory Value</span>
+            <span className="text-xs font-medium">{t.statInventoryValue}</span>
             <Boxes className="w-3.5 h-3.5" />
           </div>
-          <p className="text-2xl font-bold text-white tabular-nums tracking-tight font-mono">
-            {formatCurrency(totalInventoryRetailValue)}
+          <p className="text-xl font-bold text-white tabular-nums tracking-tight font-mono">
+            {formatCurrency(totalInventoryRetailValue, currSymbol)}
           </p>
           <div className="mt-1 text-[11px] text-slate-400 font-mono">
-            Cost: {formatCurrency(totalInventoryCost)}
+            {t.statCostValue}: {formatCurrency(totalInventoryCost, currSymbol)}
           </div>
         </div>
 
@@ -175,31 +164,31 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           }`}
         >
           <div className="flex items-center justify-between text-rose-400 mb-2">
-            <span className="text-xs font-medium">Critical Shortages</span>
+            <span className="text-xs font-medium">{t.statCriticalShortages}</span>
             <AlertTriangle className="w-3.5 h-3.5" />
           </div>
           <p className="text-2xl font-bold text-rose-400 tabular-nums tracking-tight font-mono">
             {criticalParts.length}
           </p>
           <div className="mt-1 text-[11px] text-rose-400/80">
-            Below safety minimum
+            {t.statBelowMinimum}
           </div>
         </div>
 
-        {/* Needs Reorder */}
+        {/* Reorder Alerts */}
         <div
           onClick={() => onNavigateTab('inventory')}
           className="p-4 bg-slate-900/60 border border-slate-800 rounded hover:border-slate-700 transition-colors cursor-pointer"
         >
           <div className="flex items-center justify-between text-amber-400 mb-2">
-            <span className="text-xs font-medium">Reorder Alert</span>
+            <span className="text-xs font-medium">{t.statReorderAlert}</span>
             <TrendingDown className="w-3.5 h-3.5" />
           </div>
           <p className="text-2xl font-bold text-amber-400 tabular-nums tracking-tight font-mono">
             {lowStockParts.length}
           </p>
           <div className="mt-1 text-[11px] text-slate-400">
-            At or below ROP
+            {t.statAtROP}
           </div>
         </div>
       </div>
@@ -214,10 +203,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </div>
               <div>
                 <h3 className="text-sm font-semibold text-rose-200">
-                  Heavy Equipment Parts Shortage Alert ({criticalParts.length} SKUs below minimum)
+                  {t.alertCriticalShortage} ({criticalParts.length} {currentLang === 'am' ? 'ዕቃዎች ከደህንነት ወለል በታች' : 'SKUs below minimum'})
                 </h3>
                 <p className="text-xs text-rose-300/80">
-                  Critical vehicle components (pumps, injectors, undercarriage) are below safety buffer. Fleet customer downtime risk.
+                  {t.alertShortageSub}
                 </p>
               </div>
             </div>
@@ -226,7 +215,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-rose-500 text-slate-950 hover:bg-rose-400 rounded transition-colors whitespace-nowrap self-start sm:self-center"
             >
               <Truck className="w-3.5 h-3.5" />
-              <span>Draft Supplier Restock PO</span>
+              <span>{t.btnDraftPO}</span>
             </button>
           </div>
 
@@ -234,41 +223,41 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <table className="w-full text-xs text-left border-collapse">
               <thead>
                 <tr className="text-slate-400 border-b border-rose-900/30">
-                  <th className="py-2 pr-4 font-medium">Part #</th>
-                  <th className="py-2 pr-4 font-medium">Brand & Description</th>
-                  <th className="py-2 pr-4 font-medium">Supported Machinery</th>
-                  <th className="py-2 pr-4 font-medium text-right">In Stock</th>
-                  <th className="py-2 pr-4 font-medium text-right">Safety Min</th>
-                  <th className="py-2 text-right font-medium">Action</th>
+                  <th className="py-2 pr-4 font-medium">{t.partNumber}</th>
+                  <th className="py-2 pr-4 font-medium">{t.brandAndDesc}</th>
+                  <th className="py-2 pr-4 font-medium">{t.supportedMachinery}</th>
+                  <th className="py-2 pr-4 font-medium text-right">{t.inStock}</th>
+                  <th className="py-2 pr-4 font-medium text-right">{t.safetyMin}</th>
+                  <th className="py-2 text-right font-medium">{t.action}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-rose-900/20">
                 {criticalParts.map((part) => (
                   <tr key={part.id} className="hover:bg-rose-900/10 transition-colors">
-                    <td className="py-2 pr-4 font-mono font-medium text-rose-300">
+                    <td className="py-2.5 pr-4 font-mono font-medium text-rose-300">
                       <button onClick={() => onSelectPart(part)} className="hover:underline">
                         {part.partNumber}
                       </button>
                     </td>
-                    <td className="py-2 pr-4 text-slate-200">
+                    <td className="py-2.5 pr-4 text-slate-200">
                       <span className="text-slate-400 block text-[10px]">{part.brand}</span>
                       <span className="truncate max-w-[220px] block">{part.name}</span>
                     </td>
-                    <td className="py-2 pr-4 text-amber-300/90 font-mono text-[11px] truncate max-w-[200px]">
+                    <td className="py-2.5 pr-4 text-amber-300/90 font-mono text-[11px] truncate max-w-[200px]">
                       {part.compatibleVehicles.map((v) => `${v.make} ${v.model}`).join(', ')}
                     </td>
-                    <td className="py-2 pr-4 text-right font-mono font-bold text-rose-400 tabular-nums">
+                    <td className="py-2.5 pr-4 text-right font-mono font-bold text-rose-400 tabular-nums">
                       {part.stockQuantity} {part.unitOfMeasure}
                     </td>
-                    <td className="py-2 pr-4 text-right font-mono text-slate-400 tabular-nums">
+                    <td className="py-2.5 pr-4 text-right font-mono text-slate-400 tabular-nums">
                       {part.minStockLevel} {part.unitOfMeasure}
                     </td>
-                    <td className="py-2 text-right">
+                    <td className="py-2.5 text-right">
                       <button
                         onClick={() => onOpenQuickAction('RECEIPT', part.id)}
                         className="px-2 py-0.5 text-[11px] font-medium text-slate-200 bg-slate-800 hover:bg-slate-700 rounded transition-colors whitespace-nowrap"
                       >
-                        + Receive Delivery
+                        {t.btnReceiveStock}
                       </button>
                     </td>
                   </tr>
@@ -279,20 +268,20 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       )}
 
-      {/* Main Grid: Left 2 Cols (Recent Ledger) + Right Col (Machinery Fleet Compatibility & Store Quick Ops) */}
+      {/* Main Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column: Recent Stock Movements & Sales Ledger */}
         <div className="lg:col-span-2 p-5 bg-slate-900/60 border border-slate-800 rounded">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-sm font-semibold text-white">Recent Store Sales & Stock Activity</h2>
-              <p className="text-xs text-slate-400">Live transaction stream of customer counter sales and parts receipts</p>
+              <h2 className="text-sm font-semibold text-white">{t.recentActivity}</h2>
+              <p className="text-xs text-slate-400">{t.recentActivitySub}</p>
             </div>
             <button
               onClick={() => onNavigateTab('movements')}
               className="flex items-center gap-1 text-xs text-amber-400 hover:text-amber-300 font-medium transition-colors"
             >
-              <span>Full Ledger</span>
+              <span>{t.viewFullLedger}</span>
               <ChevronRight className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -332,7 +321,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       </div>
                       <p className="text-xs text-slate-400 mt-0.5">{tx.reason}</p>
                       <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-1">
-                        <span>Ref: {tx.referenceNumber}</span>
+                        <span>{tx.referenceNumber}</span>
                         {tx.workOrderOrMachine && (
                           <>
                             <span aria-hidden="true">·</span>
@@ -356,7 +345,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       {tx.quantity > 0 ? `+${tx.quantity}` : tx.quantity}
                     </p>
                     <p className="text-[11px] text-slate-400 font-mono tabular-nums">
-                      Balance: {tx.newStock}
+                      {currentLang === 'am' ? 'ቀሪ' : 'Balance'}: {tx.newStock}
                     </p>
                   </div>
                 </div>
@@ -365,19 +354,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
 
-        {/* Right Column: Machinery Fleet Compatibility & Quick Operations */}
+        {/* Right Column: Counter Operations & Machinery Fleet */}
         <div className="space-y-6">
           {/* Quick Counter Operations */}
           <div className="p-5 bg-slate-900/60 border border-slate-800 rounded">
-            <h2 className="text-sm font-semibold text-white mb-1">Store POS & Counter Operations</h2>
-            <p className="text-xs text-slate-400 mb-3">Process sales or record deliveries</p>
+            <h2 className="text-sm font-semibold text-white mb-1">{t.counterPOSOps}</h2>
+            <p className="text-xs text-slate-400 mb-3">{t.counterPOSSub}</p>
 
             <button
               onClick={onOpenNewSale}
               className="w-full mb-2.5 py-2.5 px-3 bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold rounded text-xs flex items-center justify-center gap-2 shadow-sm transition-colors"
             >
               <ShoppingCart className="w-4 h-4" />
-              <span>+ Create Customer Sale & Invoice</span>
+              <span>{t.btnCreateSaleInvoice}</span>
             </button>
 
             <div className="grid grid-cols-2 gap-2">
@@ -386,9 +375,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 className="p-2.5 text-left bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 rounded transition-colors group"
               >
                 <div className="text-xs font-semibold text-emerald-400 group-hover:text-emerald-300">
-                  + Receive Stock
+                  {t.btnReceiveStock}
                 </div>
-                <div className="text-[11px] text-slate-400 mt-0.5">PO delivery check-in</div>
+                <div className="text-[11px] text-slate-400 mt-0.5">{t.btnReceiveSub}</div>
               </button>
 
               <button
@@ -396,9 +385,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 className="p-2.5 text-left bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 rounded transition-colors group"
               >
                 <div className="text-xs font-semibold text-rose-400 group-hover:text-rose-300">
-                  - Workshop Issue
+                  {t.btnWorkshopIssue}
                 </div>
-                <div className="text-[11px] text-slate-400 mt-0.5">Internal fleet rebuild</div>
+                <div className="text-[11px] text-slate-400 mt-0.5">{t.btnWorkshopSub}</div>
               </button>
 
               <button
@@ -406,9 +395,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 className="p-2.5 text-left bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 rounded transition-colors group"
               >
                 <div className="text-xs font-semibold text-amber-400 group-hover:text-amber-300">
-                  ± Cycle Count
+                  {t.btnCycleCount}
                 </div>
-                <div className="text-[11px] text-slate-400 mt-0.5">Yard audit variance</div>
+                <div className="text-[11px] text-slate-400 mt-0.5">{t.btnCycleSub}</div>
               </button>
 
               <button
@@ -416,17 +405,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 className="p-2.5 text-left bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 rounded transition-colors group"
               >
                 <div className="text-xs font-semibold text-sky-400 group-hover:text-sky-300">
-                  Sales Reports
+                  {t.btnSalesReports}
                 </div>
-                <div className="text-[11px] text-slate-400 mt-0.5">Invoices & receivables</div>
+                <div className="text-[11px] text-slate-400 mt-0.5">{t.btnSalesReportsSub}</div>
               </button>
             </div>
           </div>
 
           {/* Machinery Fleet Brand Distribution */}
           <div className="p-5 bg-slate-900/60 border border-slate-800 rounded">
-            <h2 className="text-sm font-semibold text-white mb-1">Supported Machinery Vehicles</h2>
-            <p className="text-xs text-slate-400 mb-3">Inventory coverage by heavy equipment OEM make</p>
+            <h2 className="text-sm font-semibold text-white mb-1">{t.supportedMachineryTitle}</h2>
+            <p className="text-xs text-slate-400 mb-3">{t.supportedMachinerySub}</p>
 
             <div className="space-y-3">
               {makeStats.map((item) => (
@@ -434,7 +423,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-slate-200 font-medium">{item.make}</span>
                     <span className="font-mono text-slate-400 tabular-nums">
-                      {formatCurrency(item.value)}
+                      {formatCurrency(item.value, currSymbol)}
                     </span>
                   </div>
                   <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
@@ -446,8 +435,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     />
                   </div>
                   <div className="flex items-center justify-between text-[10px] text-slate-400">
-                    <span>{item.count} compatible applications</span>
-                    <span>Fleet ready</span>
+                    <span>{item.count} {t.applicationsCompatible}</span>
+                    <span className="text-emerald-400 font-medium">
+                      {currentLang === 'am' ? 'ዝግጁ' : 'Fleet ready'}
+                    </span>
                   </div>
                 </div>
               ))}

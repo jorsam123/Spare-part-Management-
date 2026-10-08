@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { X, Boxes, MapPin, Truck, Scale, DollarSign } from 'lucide-react';
+import { X, Truck, DollarSign } from 'lucide-react';
 import { Part, PartCategory, UnitOfMeasure, CriticalityLevel, MachineryMake, VehicleType } from '../types/inventory';
+import { Language, getTranslation, translateCategory, translateVehicleType } from '../utils/i18n';
 
 interface AddEditPartModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (part: Part) => void;
   initialPart?: Part | null;
+  currentLang?: Language;
 }
 
 const CATEGORIES: PartCategory[] = [
@@ -32,12 +34,24 @@ const MAKES: MachineryMake[] = [
   'Universal Heavy Equipment',
 ];
 
+const VEHICLE_TYPES: VehicleType[] = [
+  'Hydraulic Excavator',
+  'Bulldozer / Crawler',
+  'Wheel Loader',
+  'Articulated Haul Truck',
+  'Motor Grader',
+  'Mining Dump Truck',
+];
+
 export const AddEditPartModal: React.FC<AddEditPartModalProps> = ({
   isOpen,
   onClose,
   onSave,
   initialPart,
+  currentLang = 'am',
 }) => {
+  const t = getTranslation(currentLang);
+
   const [formData, setFormData] = useState<Partial<Part>>({
     partNumber: '',
     oemPartNumber: '',
@@ -47,7 +61,7 @@ export const AddEditPartModal: React.FC<AddEditPartModalProps> = ({
     category: 'Filters & Service Maintenance',
     unitOfMeasure: 'ea',
     location: {
-      warehouse: 'Heavy Store Main',
+      warehouse: currentLang === 'am' ? 'ዋና መጋዘን' : 'Heavy Store Main',
       aisle: 'FL-01',
       rack: 'R01',
       shelf: 'S01',
@@ -99,7 +113,7 @@ export const AddEditPartModal: React.FC<AddEditPartModalProps> = ({
         category: 'Filters & Service Maintenance',
         unitOfMeasure: 'ea',
         location: {
-          warehouse: 'Heavy Store Main',
+          warehouse: currentLang === 'am' ? 'ዋና መጋዘን' : 'Heavy Store Main',
           aisle: 'FL-01',
           rack: 'R01',
           shelf: 'S01',
@@ -132,18 +146,24 @@ export const AddEditPartModal: React.FC<AddEditPartModalProps> = ({
       setVehicleType('Hydraulic Excavator');
     }
     setErrors({});
-  }, [initialPart, isOpen]);
+  }, [initialPart, isOpen, currentLang]);
 
   if (!isOpen) return null;
 
   const validate = (): boolean => {
     const errs: Record<string, string> = {};
-    if (!formData.partNumber?.trim()) errs.partNumber = 'Part number is required';
-    if (!formData.name?.trim()) errs.name = 'Part name is required';
-    if (formData.unitCost === undefined || formData.unitCost < 0)
-      errs.unitCost = 'Valid unit cost required';
-    if (formData.sellingPrice === undefined || formData.sellingPrice < 0)
-      errs.sellingPrice = 'Valid retail selling price required';
+    if (!formData.partNumber?.trim()) {
+      errs.partNumber = currentLang === 'am' ? 'የዕቃ ቁጥር ማስገባት ግዴታ ነው' : 'Part number is required';
+    }
+    if (!formData.name?.trim()) {
+      errs.name = currentLang === 'am' ? 'የዕቃው ስም ማስገባት ግዴታ ነው' : 'Part name is required';
+    }
+    if (formData.unitCost === undefined || formData.unitCost < 0) {
+      errs.unitCost = currentLang === 'am' ? 'ትክክለኛ የመግዣ ዋጋ ያስገቡ' : 'Valid unit cost required';
+    }
+    if (formData.sellingPrice === undefined || formData.sellingPrice < 0) {
+      errs.sellingPrice = currentLang === 'am' ? 'ትክክለኛ የችርቻሮ መሸጫ ዋጋ ያስገቡ' : 'Valid retail selling price required';
+    }
 
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -164,7 +184,7 @@ export const AddEditPartModal: React.FC<AddEditPartModalProps> = ({
       category: formData.category as PartCategory,
       unitOfMeasure: (formData.unitOfMeasure as UnitOfMeasure) || 'ea',
       location: {
-        warehouse: formData.location?.warehouse || 'Heavy Store Main',
+        warehouse: formData.location?.warehouse || (currentLang === 'am' ? 'ዋና መጋዘን' : 'Heavy Store Main'),
         aisle: formData.location?.aisle || 'FL-01',
         rack: formData.location?.rack || 'R01',
         shelf: formData.location?.shelf || 'S01',
@@ -211,10 +231,10 @@ export const AddEditPartModal: React.FC<AddEditPartModalProps> = ({
         <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
           <div>
             <h3 className="text-sm font-semibold text-white">
-              {initialPart ? 'Edit Machinery Part Specifications' : 'Register New Heavy Machinery Part'}
+              {initialPart ? t.editPartTitle : t.addNewPartTitle}
             </h3>
             <p className="text-xs text-slate-400">
-              Configure machinery fitment, commercial prices (wholesale/retail), and warehouse bin
+              {t.addPartSub}
             </p>
           </div>
           <button
@@ -231,7 +251,7 @@ export const AddEditPartModal: React.FC<AddEditPartModalProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="block text-slate-300 font-medium mb-1">
-                Part # / SKU <span className="text-rose-400">*</span>
+                {t.fieldPartNumber} <span className="text-rose-400">*</span>
               </label>
               <input
                 type="text"
@@ -246,7 +266,7 @@ export const AddEditPartModal: React.FC<AddEditPartModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-slate-300 font-medium mb-1">Cross-Ref / OEM Code</label>
+              <label className="block text-slate-300 font-medium mb-1">{t.fieldOEM}</label>
               <input
                 type="text"
                 value={formData.oemPartNumber || ''}
@@ -257,7 +277,7 @@ export const AddEditPartModal: React.FC<AddEditPartModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-slate-300 font-medium mb-1">Brand / Manufacturer</label>
+              <label className="block text-slate-300 font-medium mb-1">{t.fieldBrand}</label>
               <input
                 type="text"
                 value={formData.brand || ''}
@@ -270,7 +290,7 @@ export const AddEditPartModal: React.FC<AddEditPartModalProps> = ({
 
           <div>
             <label className="block text-slate-300 font-medium mb-1">
-              Part Name / Title <span className="text-rose-400">*</span>
+              {t.fieldName} <span className="text-rose-400">*</span>
             </label>
             <input
               type="text"
@@ -286,11 +306,11 @@ export const AddEditPartModal: React.FC<AddEditPartModalProps> = ({
           <div className="p-3 bg-slate-950 border border-slate-800 rounded space-y-2">
             <div className="flex items-center gap-1.5 text-slate-200 font-semibold">
               <Truck className="w-3.5 h-3.5 text-amber-400" />
-              <span>Target Machinery Vehicle Compatibility</span>
+              <span>{t.fitsMachineryVehicles}</span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <div>
-                <label className="block text-[10px] text-slate-400 mb-0.5">Machinery Make</label>
+                <label className="block text-[10px] text-slate-400 mb-0.5">{t.filterMake}</label>
                 <select
                   value={vehicleMake}
                   onChange={(e) => setVehicleMake(e.target.value as MachineryMake)}
@@ -305,7 +325,7 @@ export const AddEditPartModal: React.FC<AddEditPartModalProps> = ({
               </div>
 
               <div>
-                <label className="block text-[10px] text-slate-400 mb-0.5">Model / Series</label>
+                <label className="block text-[10px] text-slate-400 mb-0.5">{currentLang === 'am' ? 'ሞዴል / ሲሪየስ' : 'Model / Series'}</label>
                 <input
                   type="text"
                   value={vehicleModel}
@@ -316,33 +336,32 @@ export const AddEditPartModal: React.FC<AddEditPartModalProps> = ({
               </div>
 
               <div>
-                <label className="block text-[10px] text-slate-400 mb-0.5">Vehicle Type</label>
+                <label className="block text-[10px] text-slate-400 mb-0.5">{currentLang === 'am' ? 'የማሽኑ ዓይነት' : 'Vehicle Type'}</label>
                 <select
                   value={vehicleType}
                   onChange={(e) => setVehicleType(e.target.value as VehicleType)}
                   className="w-full px-2 py-1 bg-slate-900 border border-slate-800 rounded text-slate-200 text-xs focus:outline-none focus:border-amber-400"
                 >
-                  <option value="Hydraulic Excavator">Hydraulic Excavator</option>
-                  <option value="Bulldozer / Crawler">Bulldozer / Crawler</option>
-                  <option value="Wheel Loader">Wheel Loader</option>
-                  <option value="Articulated Haul Truck">Articulated Haul Truck</option>
-                  <option value="Motor Grader">Motor Grader</option>
-                  <option value="Mining Dump Truck">Mining Dump Truck</option>
+                  {VEHICLE_TYPES.map((vt) => (
+                    <option key={vt} value={vt}>
+                      {translateVehicleType(vt, currentLang)}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
           </div>
 
-          {/* Pricing Grid: Cost, Wholesale, Retail */}
+          {/* Pricing Grid */}
           <div className="p-3 bg-slate-950 border border-slate-800 rounded space-y-2">
             <div className="flex items-center gap-1.5 text-slate-200 font-semibold">
               <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Commercial Pricing & Weight</span>
+              <span>{currentLang === 'am' ? 'ዋጋ እና ክብደት' : 'Pricing & Weight'}</span>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono">
               <div>
                 <label className="block text-[10px] text-slate-400 font-sans mb-0.5">
-                  Store Purchase Cost ($) <span className="text-rose-400">*</span>
+                  {t.fieldUnitCost} <span className="text-rose-400">*</span>
                 </label>
                 <input
                   type="number"
@@ -358,7 +377,7 @@ export const AddEditPartModal: React.FC<AddEditPartModalProps> = ({
 
               <div>
                 <label className="block text-[10px] text-slate-400 font-sans mb-0.5">
-                  Wholesale Fleet Price ($)
+                  {t.fieldWholesalePrice}
                 </label>
                 <input
                   type="number"
@@ -374,7 +393,7 @@ export const AddEditPartModal: React.FC<AddEditPartModalProps> = ({
 
               <div>
                 <label className="block text-[10px] text-slate-400 font-sans mb-0.5">
-                  Retail Counter Price ($) <span className="text-rose-400">*</span>
+                  {t.fieldSellingPrice} <span className="text-rose-400">*</span>
                 </label>
                 <input
                   type="number"
@@ -390,7 +409,7 @@ export const AddEditPartModal: React.FC<AddEditPartModalProps> = ({
 
               <div>
                 <label className="block text-[10px] text-slate-400 font-sans mb-0.5">
-                  Weight (kg)
+                  {t.fieldWeight}
                 </label>
                 <input
                   type="number"
@@ -409,7 +428,7 @@ export const AddEditPartModal: React.FC<AddEditPartModalProps> = ({
           {/* Category & Thresholds */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <label className="block text-slate-300 font-medium mb-1">System Category</label>
+              <label className="block text-slate-300 font-medium mb-1">{t.fieldCategory}</label>
               <select
                 value={formData.category}
                 onChange={(e) =>
@@ -419,14 +438,14 @@ export const AddEditPartModal: React.FC<AddEditPartModalProps> = ({
               >
                 {CATEGORIES.map((c) => (
                   <option key={c} value={c}>
-                    {c}
+                    {translateCategory(c, currentLang)}
                   </option>
                 ))}
               </select>
             </div>
 
             <div>
-              <label className="block text-slate-300 font-medium mb-1">Initial Stock</label>
+              <label className="block text-slate-300 font-medium mb-1">{t.fieldInitialStock}</label>
               <input
                 type="number"
                 min="0"
@@ -439,7 +458,7 @@ export const AddEditPartModal: React.FC<AddEditPartModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-slate-300 font-medium mb-1">Reorder Point (ROP)</label>
+              <label className="block text-slate-300 font-medium mb-1">{t.fieldROP}</label>
               <input
                 type="number"
                 min="1"
@@ -455,10 +474,10 @@ export const AddEditPartModal: React.FC<AddEditPartModalProps> = ({
           {/* Location */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono">
             <div>
-              <label className="block text-[10px] text-slate-400 font-sans mb-0.5">Warehouse</label>
+              <label className="block text-[10px] text-slate-400 font-sans mb-0.5">{t.fieldWarehouse}</label>
               <input
                 type="text"
-                value={formData.location?.warehouse || 'Heavy Store Main'}
+                value={formData.location?.warehouse || (currentLang === 'am' ? 'ዋና መጋዘን' : 'Heavy Store Main')}
                 onChange={(e) =>
                   setFormData({
                     ...formData,
@@ -469,7 +488,7 @@ export const AddEditPartModal: React.FC<AddEditPartModalProps> = ({
               />
             </div>
             <div>
-              <label className="block text-[10px] text-slate-400 font-sans mb-0.5">Aisle / Bay</label>
+              <label className="block text-[10px] text-slate-400 font-sans mb-0.5">{t.fieldAisle}</label>
               <input
                 type="text"
                 value={formData.location?.aisle || 'FL-01'}
@@ -483,7 +502,7 @@ export const AddEditPartModal: React.FC<AddEditPartModalProps> = ({
               />
             </div>
             <div>
-              <label className="block text-[10px] text-slate-400 font-sans mb-0.5">Rack</label>
+              <label className="block text-[10px] text-slate-400 font-sans mb-0.5">{t.fieldRack}</label>
               <input
                 type="text"
                 value={formData.location?.rack || 'R01'}
@@ -497,7 +516,7 @@ export const AddEditPartModal: React.FC<AddEditPartModalProps> = ({
               />
             </div>
             <div>
-              <label className="block text-[10px] text-slate-400 font-sans mb-0.5">Bin</label>
+              <label className="block text-[10px] text-slate-400 font-sans mb-0.5">{t.fieldBin}</label>
               <input
                 type="text"
                 value={formData.location?.bin || 'B01'}
@@ -514,12 +533,12 @@ export const AddEditPartModal: React.FC<AddEditPartModalProps> = ({
 
           {/* Description */}
           <div>
-            <label className="block text-slate-300 font-medium mb-1">Technical Description</label>
+            <label className="block text-slate-300 font-medium mb-1">{t.technicalDescription}</label>
             <textarea
               rows={2}
               value={formData.description || ''}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="e.g. High efficiency synthetic filter media for common rail injector protection..."
+              placeholder={currentLang === 'am' ? 'ዝርዝር የዕቃው ቴክኒካዊ መረጃ...' : 'Detailed specs, tolerances, materials...'}
               className="w-full px-3 py-1.5 bg-slate-950 border border-slate-800 rounded text-white text-xs focus:outline-none focus:border-amber-400"
             />
           </div>
@@ -531,13 +550,13 @@ export const AddEditPartModal: React.FC<AddEditPartModalProps> = ({
               onClick={onClose}
               className="px-4 py-2 text-xs font-medium text-slate-400 hover:text-white rounded transition-colors"
             >
-              Cancel
+              {t.cancel}
             </button>
             <button
               type="submit"
               className="px-4 py-2 text-xs font-bold text-slate-950 bg-amber-400 hover:bg-amber-300 rounded transition-colors shadow-sm"
             >
-              {initialPart ? 'Update Part' : 'Save to Catalog'}
+              {initialPart ? t.btnUpdatePart : t.btnSavePart}
             </button>
           </div>
         </form>
